@@ -45,7 +45,7 @@ func Update(version string, channel string, args []string ) error {
 	}
 
 	messages = make(chan ActionMessage, 0)
-	go updateBinary(version, channel, messages)
+	go UpdateBinary(version, channel, messages)
 
 	for {
 		select {
@@ -61,7 +61,7 @@ func Update(version string, channel string, args []string ) error {
 				fmt.Printf("%s\n", msg.msg)
 			}
 
-			if msg.state == "done" {
+			if msg.state == "success" {
 				return nil
 			}
 			if msg.state == "exit" {

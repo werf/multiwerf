@@ -1,5 +1,7 @@
 #!/bin/bash
 
+version=$1
+
 os_archs=(
 #  "linux/386"
   "linux/amd64"
@@ -21,8 +23,8 @@ for os_arch in ${os_archs[@]}; do
   arch=${a[1]}
   ext=${a[2]}
   echo "Build for $os/$arch..."
-  output=${build_dir}/${bin_base_name}-${os}-${arch}${ext}
-  GOOS=${os} GOARCH=${arch} go build -ldflags="-s -w" -o ${output} ${package}
+  output=${build_dir}/${bin_base_name}-${os}-${arch}-${version}${ext}
+  GOOS=${os} GOARCH=${arch} go build -ldflags="-s -w -X github.com/flant/multiwerf/pkg/app.Version=${version} -X github.com/flant/multiwerf/pkg/app.OsArch=${os}-${arch}" -o ${output} ${package}
 done
 
 $(

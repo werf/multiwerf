@@ -51,15 +51,10 @@ func CalculateSHA256(filePath string) (string, error) {
 		if int64(n) != blocksize {
 			return "", fmt.Errorf("cannot add %d bytes to hash. Only %d written.", blocksize, n)
 		}
-		//io.WriteString(hash, string(buf))   // append into the hash
 	}
 
 	res := hash.Sum(nil)
-
-	//fmt.Printf("%s checksum is %x\n", file.Name(), hash.Sum(nil))
-
 	return fmt.Sprintf("%x", res), nil
-
 }
 
 
@@ -135,8 +130,8 @@ func TildeExpand(path string) (string, error) {
 	return filepath.Join(usr.HomeDir, path[1:]), nil
 }
 
-func VerifyReleaseFileHash(dir string, files map[string]string) (bool, error) {
-	hashFile := files["hash"]
+// TODO transform to VerifyFileHash — return 4 states: no hash file, no target file, not match, match
+func VerifyReleaseFileHash(dir string, hashFile string, targetFile string) (bool, error) {
 	hashFileExists, err := FileExists(dir, hashFile)
 	if err != nil {
 		return false, err
@@ -145,8 +140,7 @@ func VerifyReleaseFileHash(dir string, files map[string]string) (bool, error) {
 		return false, nil
 	}
 
-	prgFile := files["program"]
-	prgFileExists, err := FileExists(dir, prgFile)
+	prgFileExists, err := FileExists(dir, targetFile)
 	if err != nil {
 		return false, err
 	}
@@ -158,14 +152,14 @@ func VerifyReleaseFileHash(dir string, files map[string]string) (bool, error) {
 
 	//fmt.Printf("hashes: %+v", hashes)
 
-	hashForFile, hasHash := hashes[prgFile]
+	hashForFile, hasHash := hashes[targetFile]
 	if !hasHash {
 		return false, nil
 	}
 
 	//fmt.Printf("hashForFile: %+v", hashForFile)
 
-	hash, err := CalculateSHA256(filepath.Join(dir, prgFile))
+	hash, err := CalculateSHA256(filepath.Join(dir, targetFile))
 	if err != nil {
 		return false, err
 	}
