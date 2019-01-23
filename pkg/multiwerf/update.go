@@ -6,12 +6,18 @@ import (
 
 	"github.com/flant/multiwerf/pkg/bintray"
 	"github.com/flant/multiwerf/pkg/app"
+	"os"
 )
+
+type BinaryInfo struct {
+	BinaryPath string
+	Version string
+}
 
 // 1. Check for new version → print version
 // 2. Check hashes  existed binaries → print 'version stays'
 // 3. Download and check if no binaries are existed — print 'updated to'
-func UpdateBinary(version string, channel string, messages chan ActionMessage) {
+func UpdateBinary(version string, channel string, messages chan ActionMessage) (binInfo BinaryInfo) {
 	btClient := bintray.NewBintrayClient(app.BintraySubject, app.BintrayRepo, app.BintrayPackage)
 
 	pkgInfo, err := btClient.GetPackage()
@@ -36,6 +42,11 @@ func UpdateBinary(version string, channel string, messages chan ActionMessage) {
 	if err != nil {
 		messages <- ActionMessage{err: err, state: "exit"}
 		return
+	}
+	if latestVersion == "" {
+		messages <- ActionMessage{
+			err: fmt.Errorf("No latest version found for %s version of package %s/%s/%s", version, app.BintraySubject, app.BintrayRepo, app.BintrayPackage),
+			state: "exit"}
 	}
 	messages <- ActionMessage{msg: fmt.Sprintf("Detect version '%s' as latest for channel %s@%s", latestVersion, version, channel)}
 
@@ -63,7 +74,10 @@ func UpdateBinary(version string, channel string, messages chan ActionMessage) {
 		messages <- ActionMessage{
 			msg: fmt.Sprintf("werf %s@%s stays at %s", version, channel, latestVersion),
 			state: "success"}
-		return
+		return BinaryInfo{
+			Version: latestVersion,
+			BinaryPath: filepath.Join(dstPath, files["program"]),
+		}
 	}
 
 	// If no binary or hash not verified: download
@@ -71,6 +85,15 @@ func UpdateBinary(version string, channel string, messages chan ActionMessage) {
 	err = btClient.DownloadRelease(latestVersion, dstPath, files)
 	if err != nil {
 		messages <- ActionMessage{err: err, state: "exit"}
+		return
+	}
+
+	// chmod +x for files["program"]
+	err = os.Chmod(filepath.Join(dstPath, files["program"]), 0755)
+	if err != nil {
+		messages <- ActionMessage{
+			err: fmt.Errorf("chmod 755 failed for %s: %v", files["program"], err),
+			state: "exit"}
 		return
 	}
 
@@ -88,7 +111,11 @@ func UpdateBinary(version string, channel string, messages chan ActionMessage) {
 		messages <- ActionMessage{
 			msg: fmt.Sprintf("werf %s@%s updated to %s", version, channel, latestVersion),
 			state: "success"}
-		return
+		return BinaryInfo{
+			Version: latestVersion,
+			BinaryPath: filepath.Join(dstPath, files["program"]),
+		}
+
 	}
 
 	// Not match — ERROR and grace exit

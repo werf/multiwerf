@@ -8,7 +8,7 @@ var AppDescription = "version manager and updater for werf.io project"
 var Version = "dev"
 
 var BintraySubject = "flant"
-var BintrayRepo = "multiwerf-test"
+var BintrayRepo = "werf"
 var BintrayPackage = "werf"
 var OsArch = "linux-amd64"
 var StorageDir = "~/.multiwerf"
