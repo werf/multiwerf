@@ -1,3 +1,5 @@
+[![CircleCI](https://circleci.com/gh/flant/multiwerf/tree/master.svg?style=svg)](https://circleci.com/gh/flant/multiwerf/tree/master) [ ![Download](https://api.bintray.com/packages/flant/multiwerf/multiwerf/images/download.svg) ](https://bintray.com/flant/multiwerf/multiwerf/_latestVersion)
+
 # multiwerf
 Tool to (auto)update a binary `werf` release to the latest available version
 

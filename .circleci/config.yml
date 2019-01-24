@@ -1,17 +1,64 @@
-# Golang CircleCI 2.0 configuration file
-#
-# Check https://circleci.com/docs/2.0/language-go/ for more details
-version: 2
-jobs:
-  build:
+---
+version: 2.1
+
+executors:
+  golang:
     docker:
-      # specify the version
-      - image: circleci/golang:1.9
+    - image: circleci/golang:1.11
+
+jobs:
+  test:
+    executor: golang
 
     working_directory: /go/src/github.com/flant/multiwerf
     steps:
       - checkout
-
       # specify any bash command here prefixed with `run: `
       - run: go get -v -t -d ./...
       - run: go test -v ./...
+
+  build_release:
+    executor: golang
+
+    working_directory: /go/src/github.com/flant/multiwerf
+    steps:
+    - checkout
+    - attach_workspace:
+        at: .
+    - run: ./go-release-build.sh $CIRCLE_SHA1
+
+
+  build_release_on_tag:
+    executor: golang
+
+    steps:
+    - checkout
+    - attach_workspace:
+        at: .
+    - run: ./publish.sh release-github --tag $CIRCLE_TAG
+
+workflows:
+  version: 2
+  multiwerf:
+    jobs:
+    - test:
+        filters:  # required since `build_release_on_tag` has tag filters AND requires `test`
+          tags:
+            only: /.*/
+          branches:
+            only: /.*/
+    - build_release:
+        requires:
+        - test
+        filters:
+          branches:
+            only: master
+    - build_release_on_tag:
+        requires:
+        - test
+        filters:
+          tags:
+            only: /^v[0-9]+(\.[0-9]+){2}([-+].+|[^-.]*)$/
+          branches:
+            ignore: /.*/
+

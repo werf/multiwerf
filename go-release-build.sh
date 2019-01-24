@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 version=$1
 
@@ -11,34 +12,51 @@ os_archs=(
 )
 
 package=github.com/flant/multiwerf/cmd/multiwerf
+
 bin_base_name=multiwerf
 
-build_dir=$(pwd)/release-build
-rm -rf $build_dir
-mkdir -p ${build_dir}
+main() {
+  # get git path
+  gitPath=
+  check_git || (echo "$0: cannot find git command" && exit 2)
 
-for os_arch in ${os_archs[@]}; do
-  a=(${os_arch//\// })
-  os=${a[0]}
-  arch=${a[1]}
-  ext=${a[2]}
-  echo "Build for $os/$arch..."
-  output=${build_dir}/${bin_base_name}-${os}-${arch}-${version}${ext}
-  GOOS=${os} GOARCH=${arch} go build -ldflags="-s -w -X github.com/flant/multiwerf/pkg/app.Version=${version} -X github.com/flant/multiwerf/pkg/app.OsArch=${os}-${arch}" -o ${output} ${package}
-done
+  go get -v -d -t ./...
 
-$(
-cd $build_dir
-for i in ${bin_base_name}*
-do
-  sha256sum $i >> SHA256SUMS
-done
-)
+  build_dir=$(pwd)/release-build
+  rm -rf $build_dir
+  mkdir -p ${build_dir}
 
-# save date and commit
-datetime=$(date +%d.%m.%Y\ %H:%M:%S)
-commit=$(git rev-parse HEAD)
-cat <<EOF > ${build_dir}/info.txt
+  for os_arch in ${os_archs[@]}; do
+    a=(${os_arch//\// })
+    os=${a[0]}
+    arch=${a[1]}
+    ext=${a[2]}
+    echo "Build for $os/$arch..."
+    output=${build_dir}/${bin_base_name}-${os}-${arch}-${version}${ext}
+    GOOS=${os} GOARCH=${arch} go build -ldflags="-s -w -X github.com/flant/multiwerf/pkg/app.Version=${version} -X github.com/flant/multiwerf/pkg/app.OsArch=${os}-${arch}" -o ${output} ${package}
+  done
+
+  $(
+    cd $build_dir
+    for i in ${bin_base_name}*
+    do
+      sha256sum $i >> SHA256SUMS
+    done
+  )
+
+  # save date and commit
+  datetime=$(date +%d.%m.%Y\ %H:%M:%S)
+  commit=$($gitPath rev-parse HEAD)
+  cat <<EOF > ${build_dir}/info.txt
 Build date: ${datetime}
 Commit: ${commit}
 EOF
+}
+
+check_git() {
+  gitPath=$(which git) || return 1
+}
+
+# wait for full file download if executed as
+# $ curl | sh
+main "$@"
