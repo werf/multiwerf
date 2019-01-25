@@ -200,3 +200,18 @@ func Test_determineChannels_hasRc(t *testing.T) {
 	assert.Equal(t, "1.1.2-rc.0", res["rc"].String())
 	assert.Nil(t, res["stable"])
 }
+
+
+func Test_chooseLatestSimple(t *testing.T) {
+	input := []string {
+		"0.0.1-rc.321+test.ci.6",
+		"0.0.1+test.ci.4",
+		"0.0.1-alpha.2+test.ci.7",
+	}
+
+	version, err := ChooseLatestVersionSimple(input)
+
+	assert.NoError(t, err)
+
+	assert.Equal(t, "0.0.1+test.ci.4", version)
+}

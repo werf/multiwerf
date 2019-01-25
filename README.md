@@ -1,11 +1,12 @@
-[![CircleCI](https://circleci.com/gh/flant/multiwerf/tree/master.svg?style=svg)](https://circleci.com/gh/flant/multiwerf/tree/master) [ ![Download](https://api.bintray.com/packages/flant/multiwerf/multiwerf/images/download.svg) ](https://bintray.com/flant/multiwerf/multiwerf/_latestVersion)
+[![CircleCI](https://circleci.com/gh/flant/multiwerf/tree/master.svg?style=svg)](https://circleci.com/gh/flant/multiwerf/tree/master)
+[![Download](https://api.bintray.com/packages/flant/multiwerf/multiwerf/images/download.svg)](https://bintray.com/flant/multiwerf/multiwerf/_latestVersion)
 
 # multiwerf
 Tool to (auto)update a binary `werf` release to the latest available version
 
 ## Commands
 
-- `multiwerf use MAJOR.MINOR CHANNEL` — check for latest version in MAJOR.MINOR series and return a script for use with `source`
+- `multiwerf use MAJOR.MINOR CHANNEL` — check for latest version of multiwerf, self update in background if needed, check for latest version in MAJOR.MINOR series and return a script for use with `source`
 - `multiwerf update MAJOR.MINOR CHANNEL` — update binary to the latest version in MAJOR.MINOR series
 
 First positional argument is in form of MAJOR.MINOR. More on this in Versioning.
@@ -39,8 +40,7 @@ MAJOR.MINOR.PATCH-PRERELEASE+METADATA
 - PATCH can be increased with prereleases (1.0.1 → 1.0.2-alpha → 1.0.2-alpha.1 → 1.0.2-rc.1 → 1.0.2)
 - version without PRERELEASE part is a version for `stable` channel
 - version with PRERELEASE part should be a version for `alpha`, `beta` or `rc` channels
-- METADATA parts are sorted
-- METADATA can be used for hotfixes
+- METADATA parts are not sorted (by semver spec)
 
 ## Channels
 
