@@ -22,6 +22,25 @@ func CheckMajorMinor(version string) error {
 }
 
 
+// ChooseLatestVersionSimple returns a latest version from availableVersions array
+func ChooseLatestVersionSimple(availableVersions []string) (string, error) {
+	vs := make([]*semver.Version, len(availableVersions))
+	for i, r := range availableVersions {
+		v, err := semver.NewVersion(r)
+		if err != nil {
+			return "", fmt.Errorf("parse version '%s' error: %v", r, err)
+		}
+		vs[i] = v
+	}
+
+	sort.Sort(semver.Collection(vs))
+
+	if len(vs) > 0 {
+		return vs[len(vs)-1].String(), nil
+	}
+	return "", nil
+}
+
 // ChooseLatestVersion returns a latest version from availableVersions that suits version and channel constrain.
 //
 // version is a constrain on MAJOR and MINOR parts

@@ -7,21 +7,21 @@ var AppDescription = "version manager and updater for werf.io project"
 
 var Version = "dev"
 
+var SelfBintraySubject = "flant"
+var SelfBintrayRepo = "multiwerf"
+var SelfBintrayPackage = "multiwerf"
+
 var BintraySubject = "flant"
 var BintrayRepo = "werf"
 var BintrayPackage = "werf"
 var OsArch = "linux-amd64"
 var StorageDir = "~/.multiwerf"
 
+var SelfUpdate = "yes"
 var DebugMessages = "no"
 
 
 func SetupGlobalSettings(kpApp *kingpin.Application) {
-	kpApp.Flag("debug", "turn on debug messages").
-		Envar("MULTIWERF_DEBUG").
-		Default(DebugMessages).
-		StringVar(&DebugMessages)
-
 	kpApp.Flag("bintray-subject", "subject part for bintray api").
 		Envar("MULTIWERF_BINTRAY_SUBJECT").
 		Default(BintraySubject).
@@ -47,4 +47,14 @@ func SetupGlobalSettings(kpApp *kingpin.Application) {
 		Envar("MULTIWERF_STORAGE_DIR").
 		Default(StorageDir).
 		StringVar(&StorageDir)
+
+	kpApp.Flag("self-update", "set to no to disable self update in use command").
+		Envar("MULTIWERF_SELF_UPDATE").
+		Default(SelfUpdate).
+		StringVar(&SelfUpdate)
+
+	kpApp.Flag("debug", "set to yes to turn on debug messages").
+		Envar("MULTIWERF_DEBUG").
+		Default(DebugMessages).
+		StringVar(&DebugMessages)
 }

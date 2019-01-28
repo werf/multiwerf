@@ -30,11 +30,25 @@ func Use(version string, channel string, args []string ) error {
 		return err
 	}
 
-	// TODO add self-update
-
 	messages = make(chan ActionMessage, 0)
+
 	var binaryInfo BinaryInfo
+	var selfPath string
 	go func() {
+		if app.SelfUpdate == "yes" {
+			selfPath = SelfUpdate(messages)
+			if selfPath != "" {
+				err := ExecUpdatedBinary(selfPath)
+				if err != nil {
+					messages <- ActionMessage{
+						msg: fmt.Sprintf("multiwerf %s self-update: exec from updated binary failed: %v", app.Version, err),
+						state: "self-update-error"}
+				} else {
+					// Cannot be reached because of exec syscall.
+					return
+				}
+			}
+		}
 		binaryInfo = UpdateBinary(version, channel, messages)
 	}()
 
@@ -47,26 +61,48 @@ READ_MESSAGES:
 				break
 			}
 
+			if msg.state == "self-update-error" && msg.msg != "" {
+				if msg.msg != "" {
+					fmt.Printf("# self-update-error\necho -e \"\\e[31m\" %s \"\\e[0m\"\n", msg.msg)
+				}
+				break
+			}
+			if msg.state == "self-update-warning" && msg.msg != "" {
+				if msg.msg != "" {
+					fmt.Printf("# self-update-warning\necho -e \"\\e[33m\" %s \"\\e[0m\"\n", msg.msg)
+				}
+				break
+			}
+			if msg.state == "self-update-success" {
+				if msg.msg != "" {
+					fmt.Printf("# self-update-success\necho -e \"\\e[32m\" %s \"\\e[0m\"\n#\n#\n", msg.msg)
+				}
+				break
+			}
+
 			// print "return 1" to fail source command
 			if msg.err != nil {
 				PrintErrorScript()
 				return msg.err
 			}
 
-			// print messages as comments for source
-			if msg.msg != "" {
-				fmt.Printf("# %s\n", msg.msg)
+			// break for-loop on successful update of binary
+			if msg.state == "success" {
+				fmt.Printf("# update %s success\necho -e \"\\e[32m\" %s\"\\e[0m\"\n\n", app.BintrayPackage, msg.msg)
+				break READ_MESSAGES
 			}
 
-			// print use script on successful update
-			if msg.state == "success" {
-				break READ_MESSAGES
+			if msg.msg != "" {
+				// print messages as comments for source
+				fmt.Printf("# %s\n", msg.msg)
+				break
 			}
 
 			// No script actions on exit
 			if msg.state == "exit" {
 				return nil
 			}
+
 		}
 	}
 
@@ -111,16 +147,17 @@ func Update(version string, channel string, args []string ) error {
 }
 
 
+// TODO Add script block to prevent from loading not in bash/zsh shells (as in rvm script)
 func PrintUseScript(info BinaryInfo) error {
-	fmt.Printf(`# set werf path
-# TODO Add block for prevent from loading in sh shells (as in rvm script)
-%s()
+	fmt.Printf(`#
+# Function with path to choosen version of %s binary.
+# To remove function use unset:
+# unset -f %[1]s
+%[1]s()
 {
 %s "$@"
 }
 
-# to remove function use unset:
-# unset -f %[1]s
 `, app.BintrayPackage, info.BinaryPath)
 	return nil
 }
