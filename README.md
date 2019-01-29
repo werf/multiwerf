@@ -4,6 +4,27 @@
 # multiwerf
 Tool to (auto)update a binary `werf` release to the latest available version
 
+## Installation
+
+The simplest way is to install to current directory with install.sh script:
+
+```
+curl -L https://raw.githubusercontent.com/flant/multiwerf/master/install.sh | bash
+```
+
+Also you can manually download binary for your platform from bintray: [latest version](https://bintray.com/flant/multiwerf/multiwerf/_latestVersion).
+
+## Usage
+
+General usage of `multiwerf` is to download a werf binary and setup a `werf` function for the shell.
+
+```
+source <(multiwerf 1.0)
+```
+
+This command will download a stable version of `werf` into ~/.multiwerf directory and setup a function to run this version.
+
+
 ## Commands
 
 - `multiwerf use MAJOR.MINOR CHANNEL` — check for latest version of multiwerf, self update in background if needed, check for latest version in MAJOR.MINOR series and return a script for use with `source`
@@ -24,6 +45,8 @@ Binaries are downloaded to a directory `$HOME/.multiwerf/VERSION/`. For example,
 |
 ...
 ```
+
+`use` command also have `--update=no` flag to prevent version checking and use only locally available versions from ~/.multiwerf.
 
 ## Versioning
 
@@ -119,8 +142,16 @@ The first version of `multiwerf` hardcode this information at complile time and 
 
 ## Installation and update
 
-TODO self-update
+Multiwerf checks for new version in case of use and update commands. If new version in bintray.com/flant/multiwerf/multiwerf is found, multiwerf download it and start a new proccess with the same arguments and environment.
 
-TODO ...
+`--self-update=no` flag and `MULTIWERF_SELF_UPDATE=no` environment variable are available to turn off self updates.
 
-Download to home directory, run...
+Self update is disabled if `multiwerf` binary isn't owned by user that run it and if file is not writable by owner.
+
+## Offline tips
+
+`multiwerf` can be used in offline scenarios.
+
+1. set MULTIWERF_UPDATE=no and MULTIWERF_SELF_UPDATE=no environment variables to prevent http requests or use `--self-update=no --update=no` flags
+2. put desired binary file and SHA256SUMS file into `~/.multiwerf/<version> directory`
+3. `source <(multiwerf use ...)` will not make any online request and consider locally available version as latest
