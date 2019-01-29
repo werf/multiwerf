@@ -52,7 +52,7 @@ func UpdateBinary(version string, channel string, messages chan ActionMessage) (
 	}
 	if latestVersion == "" {
 		messages <- ActionMessage{
-			err: fmt.Errorf("No latest version found for %s version of package %s/%s/%s", version, app.BintraySubject, app.BintrayRepo, app.BintrayPackage),
+			err: fmt.Errorf("No %s version found for %s version of package %s/%s/%s", channel, version, app.BintraySubject, app.BintrayRepo, app.BintrayPackage),
 			state: "exit"}
 		return
 	}
