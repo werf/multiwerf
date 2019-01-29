@@ -25,7 +25,7 @@ jobs:
     - checkout
     - attach_workspace:
         at: .
-    - run: ./go-release-build.sh $CIRCLE_SHA1
+    - run: ./release/build.sh $CIRCLE_SHA1
 
 
   build_release_on_tag:
@@ -35,7 +35,7 @@ jobs:
     - checkout
     - attach_workspace:
         at: .
-    - run: ./publish.sh release-github --tag $CIRCLE_TAG
+    - run: ./release/publish.sh --tag $CIRCLE_TAG
 
 workflows:
   version: 2
