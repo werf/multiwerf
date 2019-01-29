@@ -36,7 +36,7 @@ func ChooseLatestVersionSimple(availableVersions []string) (string, error) {
 	sort.Sort(semver.Collection(vs))
 
 	if len(vs) > 0 {
-		return vs[len(vs)-1].String(), nil
+		return vs[len(vs)-1].Original(), nil
 	}
 	return "", nil
 }
@@ -60,7 +60,7 @@ func ChooseLatestVersion(version string, channel string, availableVersions []str
 	for _, patch := range patches {
 		channelMap := determineChannels(patchesMap[int64(patch)], availableChannels)
 		if _, ok := channelMap[channel]; ok {
-			return channelMap[channel].String(), nil
+			return channelMap[channel].Original(), nil
 		}
 	}
 	return "", nil
