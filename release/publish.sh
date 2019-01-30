@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
 set -e
 
+BASE_NAME=multiwerf
+
 #BINTRAY_AUTH=              # bintray auth user:TOKEN
 BINTRAY_SUBJECT=flant       # bintray organization
-BINTRAY_REPO=multiwerf      # bintray repository
-BINTRAY_PACKAGE=multiwerf   # bintray package in repository
+BINTRAY_REPO=$BASE_NAME     # bintray repository
+BINTRAY_PACKAGE=$BASE_NAME  # bintray package in repository
 
 #NO_PRERELEASE=        # This is not a pre release
 
 #GITHUB_TOKEN=         # github API token
 GITHUB_OWNER=flant     # github user/org
-GITHUB_REPO=multiwerf  # github repository
+GITHUB_REPO=$BASE_NAME # github repository
 
 RELEASE_BUILD_DIR=release/build
 
@@ -63,8 +65,8 @@ main() {
     ( bintray_create_version "$VERSION" && echo "Bintray: Version $VERSION created" ) || ( exit 1 )
 
     (
-     cd $RELEASE_BUILD_DIR
-     for filename in "${BASE_NAME}-"* SHA256SUMS info.txt ; do
+     cd "$RELEASE_BUILD_DIR/$VERSION"
+     for filename in "${BASE_NAME}"-* SHA256SUMS info.txt ; do
        echo "Upload $filename"
        ( bintray_upload_file_into_version "$VERSION" "$filename" "$VERSION/$filename" ) || ( exit 1 )
      done
@@ -117,8 +119,8 @@ JSON
 # upload file to a package $BINTRAY_PACKAGE version $VERSION
 bintray_upload_file_into_version() {
   local VERSION=$1
-  local UPLOAD_FILE_PATH=$1
-  local DESTINATION_PATH=$2
+  local UPLOAD_FILE_PATH=$2
+  local DESTINATION_PATH=$3
 
   curlResponse=$(mktemp)
   status=$(curl -s -w '%{http_code}' -o "$curlResponse" \
