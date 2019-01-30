@@ -13,6 +13,6 @@ VERSION=${1}
 
 TAG_TEMPLATE="$DIR/git_tag_template.md"
 
-envsubst < ${TAG_TEMPLATE} | git tag --annotate --file - --edit $VERSION
+VERSION="$VERSION" envsubst < ${TAG_TEMPLATE} | git tag --annotate --file - --edit $VERSION
 
 git push --tags

@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 set -e
 
-#BINTRAY_AUTH=         # bintray auth user:TOKEN
-BINTRAY_SUBJECT=flant  # bintray organization
-BINTRAY_REPO=werf      # bintray repository
-BINTRAY_PACKAGE=werf   # bintray package in repository
+#BINTRAY_AUTH=              # bintray auth user:TOKEN
+BINTRAY_SUBJECT=flant       # bintray organization
+BINTRAY_REPO=multiwerf      # bintray repository
+BINTRAY_PACKAGE=multiwerf   # bintray package in repository
 
 #NO_PRERELEASE=        # This is not a pre release
 
 #GITHUB_TOKEN=         # github API token
 GITHUB_OWNER=flant     # github user/org
-GITHUB_REPO=werf       # github repository
+GITHUB_REPO=multiwerf  # github repository
 
 RELEASE_BUILD_DIR=release/build
 
@@ -162,7 +162,7 @@ github_create_release() {
   GHPAYLOAD=$(cat <<- JSON
 {
   "tag_name": "$GIT_TAG",
-  "name": "Werf $VERSION",
+  "name": "Multiwerf $VERSION",
   "body": $TAG_RELEASE_MESSAGE,
   "draft": false,
   "prerelease": $prerelease
