@@ -20,7 +20,6 @@ var StorageDir = "~/.multiwerf"
 var SelfUpdate = "yes"
 var DebugMessages = "no"
 
-
 func SetupGlobalSettings(kpApp *kingpin.Application) {
 	kpApp.Flag("bintray-subject", "subject part for bintray api").
 		Envar("MULTIWERF_BINTRAY_SUBJECT").

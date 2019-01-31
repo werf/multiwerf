@@ -21,7 +21,6 @@ func CheckMajorMinor(version string) error {
 	return nil
 }
 
-
 // ChooseLatestVersionSimple returns a latest version from availableVersions array
 func ChooseLatestVersionSimple(availableVersions []string) (string, error) {
 	vs := make([]*semver.Version, len(availableVersions))

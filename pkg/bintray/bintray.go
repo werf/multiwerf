@@ -1,8 +1,8 @@
 package bintray
 
 import (
-	"fmt"
 	"encoding/json"
+	"fmt"
 
 	"github.com/flant/multiwerf/pkg/http"
 )
@@ -10,10 +10,9 @@ import (
 const btApiUrl = "https://api.bintray.com"
 const btDlUrl = "https://dl.bintray.com"
 
-
 type BintrayEvent struct {
-	Msg string
-	Err error
+	Msg   string
+	Err   error
 	State string
 }
 
@@ -25,7 +24,7 @@ type BintrayClient interface {
 
 type MainBintrayClient struct {
 	Subject string
-	Repo string
+	Repo    string
 	Package string
 	eventCh chan BintrayEvent
 }
@@ -33,7 +32,7 @@ type MainBintrayClient struct {
 func NewBintrayClient(subject string, repo string, pkg string) (bc BintrayClient) {
 	bc = &MainBintrayClient{
 		Subject: subject,
-		Repo: repo,
+		Repo:    repo,
 		Package: pkg,
 		eventCh: make(chan BintrayEvent, 1),
 	}

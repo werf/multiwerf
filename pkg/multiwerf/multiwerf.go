@@ -20,10 +20,10 @@ type ActionMessage struct {
 	msgType string // message type: ok, warn, fail
 	err     error  // Error message — display it in case of critical error before graceful exit
 	comment string // minor message that displayed as a comment in a script output (can be grayed)
-	debug bool // debug msg and comment are displayed only if --debug=yes flag is set
+	debug   bool   // debug msg and comment are displayed only if --debug=yes flag is set
 }
 
-func Use(version string, channel string, args []string ) error {
+func Use(version string, channel string, args []string) error {
 	err := CheckMajorMinor(version)
 	if err != nil {
 		return err
@@ -33,7 +33,6 @@ func Use(version string, channel string, args []string ) error {
 	script := output.NewScript()
 
 	SelfUpdate(messages, script.Printer)
-
 
 	var binaryInfo BinaryInfo
 	go func() {
@@ -45,7 +44,7 @@ func Use(version string, channel string, args []string ) error {
 	return script.PrintBinaryAliasFunction(app.BintrayPackage, binaryInfo.BinaryPath)
 }
 
-func Update(version string, channel string, args []string ) error {
+func Update(version string, channel string, args []string) error {
 	err := CheckMajorMinor(version)
 	if err != nil {
 		return err

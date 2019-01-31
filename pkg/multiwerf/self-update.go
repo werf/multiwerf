@@ -7,8 +7,8 @@ import (
 	"syscall"
 
 	"github.com/flant/multiwerf/pkg/app"
-	"github.com/flant/multiwerf/pkg/output"
 	"github.com/flant/multiwerf/pkg/bintray"
+	"github.com/flant/multiwerf/pkg/output"
 )
 
 var multiwerfProlog = fmt.Sprintf("multiwerf %s self-update", app.Version)
@@ -56,13 +56,13 @@ func DoSelfUpdate(messages chan ActionMessage) string {
 	err = CheckIsFileWritable(selfPath)
 	if err != nil {
 		messages <- ActionMessage{
-			msg: fmt.Sprintf("%s: check is writable error: %v", multiwerfProlog, err),
+			msg:   fmt.Sprintf("%s: check is writable error: %v", multiwerfProlog, err),
 			debug: true}
 		messages <- ActionMessage{
 			comment: "self update warning",
-			msg:   fmt.Sprintf("Multiwerf self-update is disabled. Executable file is not writable."),
+			msg:     fmt.Sprintf("Multiwerf self-update is disabled. Executable file is not writable."),
 			msgType: "warn",
-			stage: "self-update"}
+			stage:   "self-update"}
 		return ""
 	}
 
@@ -75,9 +75,9 @@ func DoSelfUpdate(messages chan ActionMessage) string {
 	if err != nil {
 		messages <- ActionMessage{
 			comment: "self update error",
-			msg:   fmt.Sprintf("%s: package %s/%s/%s GET info error: %v", multiwerfProlog, app.SelfBintraySubject, app.SelfBintrayRepo, app.SelfBintrayPackage, err),
+			msg:     fmt.Sprintf("%s: package %s/%s/%s GET info error: %v", multiwerfProlog, app.SelfBintraySubject, app.SelfBintrayRepo, app.SelfBintrayPackage, err),
 			msgType: "error",
-			stage: "self-update"}
+			stage:   "self-update"}
 		return ""
 	}
 
@@ -85,13 +85,13 @@ func DoSelfUpdate(messages chan ActionMessage) string {
 	if len(versions) == 0 {
 		messages <- ActionMessage{
 			comment: "self update error",
-			msg:   fmt.Sprintf("%s: no versions found", multiwerfProlog),
+			msg:     fmt.Sprintf("%s: no versions found", multiwerfProlog),
 			msgType: "error",
-			stage: "self-update"}
+			stage:   "self-update"}
 		return ""
 	} else {
 		messages <- ActionMessage{
-			msg: fmt.Sprintf("%s: discover %d versions: %+v", multiwerfProlog, len(versions), versions),
+			msg:   fmt.Sprintf("%s: discover %d versions: %+v", multiwerfProlog, len(versions), versions),
 			debug: true}
 	}
 
@@ -100,39 +100,38 @@ func DoSelfUpdate(messages chan ActionMessage) string {
 	if err != nil {
 		messages <- ActionMessage{
 			comment: "self update error",
-			msg:   fmt.Sprintf("%s: cannot choose latest version: %v", multiwerfProlog, err),
+			msg:     fmt.Sprintf("%s: cannot choose latest version: %v", multiwerfProlog, err),
 			msgType: "error",
-			stage: "self-update"}
+			stage:   "self-update"}
 		return ""
 	}
 	if latestVersion == "" {
 		messages <- ActionMessage{
 			comment: "self update error",
-			msg:   fmt.Sprintf("%s: no latest version found", multiwerfProlog),
+			msg:     fmt.Sprintf("%s: no latest version found", multiwerfProlog),
 			msgType: "error",
-			stage: "self-update"}
+			stage:   "self-update"}
 		return ""
 	}
 	if latestVersion == app.Version {
 		messages <- ActionMessage{
-			msg:   fmt.Sprintf("%s: already latest version", multiwerfProlog),
+			msg:    fmt.Sprintf("%s: already latest version", multiwerfProlog),
 			action: "exit",
-			stage: "self-update"}
+			stage:  "self-update"}
 		return ""
 	}
 
 	messages <- ActionMessage{
-		msg: fmt.Sprintf("%s: detect version '%s' as latest", multiwerfProlog, latestVersion),
+		msg:     fmt.Sprintf("%s: detect version '%s' as latest", multiwerfProlog, latestVersion),
 		msgType: "ok",
-		stage: "self-update"}
-
+		stage:   "self-update"}
 
 	files := ReleaseFiles(app.SelfBintrayPackage, latestVersion, app.OsArch)
-	downloadFiles := map[string]string {
+	downloadFiles := map[string]string{
 		"program": files["program"],
 	}
 	messages <- ActionMessage{
-		msg: fmt.Sprintf("dstPath is '%s', downloadFiles: %+v", selfDir, downloadFiles),
+		msg:   fmt.Sprintf("dstPath is '%s', downloadFiles: %+v", selfDir, downloadFiles),
 		debug: true}
 
 	messages <- ActionMessage{msg: fmt.Sprintf("%s: start downloading", multiwerfProlog), debug: true}
@@ -140,9 +139,9 @@ func DoSelfUpdate(messages chan ActionMessage) string {
 	if err != nil {
 		messages <- ActionMessage{
 			comment: "self update error",
-			msg:   fmt.Sprintf("%s: download release error: %v", multiwerfProlog, err),
+			msg:     fmt.Sprintf("%s: download release error: %v", multiwerfProlog, err),
 			msgType: "error",
-			stage: "self-update"}
+			stage:   "self-update"}
 		return ""
 	}
 
@@ -153,9 +152,9 @@ func DoSelfUpdate(messages chan ActionMessage) string {
 	if err != nil {
 		messages <- ActionMessage{
 			comment: "self update error",
-			msg:   fmt.Sprintf("%s: chmod 755 failed for %s: %v", multiwerfProlog, files["program"], err),
+			msg:     fmt.Sprintf("%s: chmod 755 failed for %s: %v", multiwerfProlog, files["program"], err),
 			msgType: "error",
-			stage: "self-update"}
+			stage:   "self-update"}
 		return ""
 	}
 
@@ -163,17 +162,17 @@ func DoSelfUpdate(messages chan ActionMessage) string {
 	if err != nil {
 		messages <- ActionMessage{
 			comment: "self update error",
-			msg:   fmt.Sprintf("%s: replace executable error: %v", multiwerfProlog, err),
+			msg:     fmt.Sprintf("%s: replace executable error: %v", multiwerfProlog, err),
 			msgType: "error",
-			stage: "self-update"}
+			stage:   "self-update"}
 		return ""
 	}
 
 	messages <- ActionMessage{
-		msg:   fmt.Sprintf("%s: successfully updated to %s", multiwerfProlog, latestVersion),
+		msg:     fmt.Sprintf("%s: successfully updated to %s", multiwerfProlog, latestVersion),
 		msgType: "ok",
-		action: "exit",
-		stage: "self-update"}
+		action:  "exit",
+		stage:   "self-update"}
 	return selfPath
 }
 
@@ -195,7 +194,7 @@ func CheckIsFileWritable(path string) error {
 	}
 
 	// Check if the user write bit is enabled in file permission
-	if info.Mode().Perm() & (1 << (uint(7))) == 0 {
+	if info.Mode().Perm()&(1<<(uint(7))) == 0 {
 		return fmt.Errorf("write permission bit is not set on '%s'", path)
 	}
 
@@ -211,7 +210,6 @@ func CheckIsFileWritable(path string) error {
 	return nil
 }
 
-
 func ReplaceBinaryFile(dir string, currentName string, newName string) (err error) {
 	currentPath := filepath.Join(dir, currentName)
 	newPath := filepath.Join(dir, newName)
@@ -221,8 +219,6 @@ func ReplaceBinaryFile(dir string, currentName string, newName string) (err erro
 	// 1. after a successful update, Windows can't remove the .old file because the process is still running
 	// 2. windows rename operations fail if the destination file already exists
 	_ = os.Remove(oldPath)
-
-
 
 	// move the existing executable to a new file in the same directory
 	err = os.Rename(currentPath, oldPath)
@@ -262,7 +258,6 @@ func ReplaceBinaryFile(dir string, currentName string, newName string) (err erro
 
 	return nil
 }
-
 
 type rollbackErr struct {
 	error             // original error
