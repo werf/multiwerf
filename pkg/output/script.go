@@ -1,0 +1,70 @@
+package output
+
+import (
+	"fmt"
+)
+
+type ScriptPrint struct {
+
+}
+
+func NewScriptPrint() *ScriptPrint {
+	return &ScriptPrint{}
+}
+
+func (p *ScriptPrint) Cprintf(color string, format string, args ...interface{}) (n int, err error) {
+	if color == "" || color == "none" {
+		return fmt.Print("echo ", fmt.Sprintf(format, args...), "\n")
+	}
+
+	return fmt.Print("echo -e ", ColorCodes[color]["quoted"], fmt.Sprintf(format, args...), ColorCodes["stop"]["quoted"], "\n")
+}
+
+func (p *ScriptPrint) CommentPrintf(format string, args ...interface{}) (n int, err error) {
+	return fmt.Print("# ", fmt.Sprintf(format, args...), "\n")
+}
+
+// Message output comment and message in script form:
+// # comment
+// echo -e color_code message stop_color_code
+func (s *ScriptPrint) Message(msg string, color string, comment string) {
+	s.CommentPrintf(comment)
+	s.Cprintf(color, msg)
+}
+
+// DebugMessage output a message in gray color
+func (s *ScriptPrint) DebugMessage(msg string, comment string) {
+	s.CommentPrintf(comment)
+	s.Cprintf("none", msg)
+}
+
+func (s *ScriptPrint) Error(err error) {
+	s.Cprintf("red", "%v\n", err)
+	fmt.Println("return 1")
+	return
+}
+
+
+type Script struct {
+	Printer *ScriptPrint
+}
+
+func NewScript() *Script {
+	return &Script{
+		Printer: NewScriptPrint(),
+	}
+}
+
+// TODO Add script block to prevent from loading not in bash/zsh shells (as in rvm script)
+func (s *Script) PrintBinaryAliasFunction(name, path string) error {
+	fmt.Printf(`#
+# Function with path to choosen version of %s binary.
+# To remove function use unset:
+# unset -f %[1]s
+%[1]s() {
+%s "$@"
+}
+
+`, name, path)
+	return nil
+}
