@@ -1,9 +1,8 @@
 package multiwerf
 
 import (
-	"fmt"
-
 	"github.com/flant/multiwerf/pkg/app"
+	"github.com/flant/multiwerf/pkg/output"
 )
 
 var AvailableChannels = []string{
@@ -15,14 +14,14 @@ var AvailableChannels = []string{
 
 // use and update actions send messages
 type ActionMessage struct {
-	msg string
-	err error
-	state string
-	// more options
-	debug bool
+	stage   string // stage of a program
+	action  string // action to perform (exit with error, exit 0, ...)
+	msg     string // Text to print to the screen
+	msgType string // message type: ok, warn, fail
+	err     error  // Error message — display it in case of critical error before graceful exit
+	comment string // minor message that displayed as a comment in a script output (can be grayed)
+	debug bool // debug msg and comment are displayed only if --debug=yes flag is set
 }
-var messages chan ActionMessage
-
 
 func Use(version string, channel string, args []string ) error {
 	err := CheckMajorMinor(version)
@@ -30,83 +29,20 @@ func Use(version string, channel string, args []string ) error {
 		return err
 	}
 
-	messages = make(chan ActionMessage, 0)
+	messages := make(chan ActionMessage, 0)
+	script := output.NewScript()
+
+	SelfUpdate(messages, script.Printer)
+
 
 	var binaryInfo BinaryInfo
-	var selfPath string
 	go func() {
-		if app.SelfUpdate == "yes" {
-			selfPath = SelfUpdate(messages)
-			if selfPath != "" {
-				err := ExecUpdatedBinary(selfPath)
-				if err != nil {
-					messages <- ActionMessage{
-						msg: fmt.Sprintf("multiwerf %s self-update: exec from updated binary failed: %v", app.Version, err),
-						state: "self-update-error"}
-				} else {
-					// Cannot be reached because of exec syscall.
-					return
-				}
-			}
-		}
 		binaryInfo = UpdateBinary(version, channel, messages)
 	}()
 
-READ_MESSAGES:
-	for {
-		select {
-		case msg := <-messages:
-			// ignore debug messages if no --debug=yes flag
-			if msg.debug && app.DebugMessages != "yes" {
-				break
-			}
+	PrintMessages(messages, script.Printer)
 
-			if msg.state == "self-update-error" && msg.msg != "" {
-				if msg.msg != "" {
-					fmt.Printf("# self-update-error\necho -e \"\\e[31m\" %s \"\\e[0m\"\n", msg.msg)
-				}
-				break
-			}
-			if msg.state == "self-update-warning" && msg.msg != "" {
-				if msg.msg != "" {
-					fmt.Printf("# self-update-warning\necho -e \"\\e[33m\" %s \"\\e[0m\"\n", msg.msg)
-				}
-				break
-			}
-			if msg.state == "self-update-success" {
-				if msg.msg != "" {
-					fmt.Printf("# self-update-success\necho -e \"\\e[32m\" %s \"\\e[0m\"\n#\n#\n", msg.msg)
-				}
-				break
-			}
-
-			// print "return 1" to fail source command
-			if msg.err != nil {
-				PrintErrorScript()
-				return msg.err
-			}
-
-			// break for-loop on successful update of binary
-			if msg.state == "success" {
-				fmt.Printf("# update %s success\necho -e \"\\e[32m\" %s\"\\e[0m\"\n\n", app.BintrayPackage, msg.msg)
-				break READ_MESSAGES
-			}
-
-			if msg.msg != "" {
-				// print messages as comments for source
-				fmt.Printf("# %s\n", msg.msg)
-				break
-			}
-
-			// No script actions on exit
-			if msg.state == "exit" {
-				return nil
-			}
-
-		}
-	}
-
-	return PrintUseScript(binaryInfo)
+	return script.PrintBinaryAliasFunction(app.BintrayPackage, binaryInfo.BinaryPath)
 }
 
 func Update(version string, channel string, args []string ) error {
@@ -115,54 +51,51 @@ func Update(version string, channel string, args []string ) error {
 		return err
 	}
 
-	// TODO add self-update
+	messages := make(chan ActionMessage, 0)
+	printer := output.NewSimplePrint()
 
-	messages = make(chan ActionMessage, 0)
+	SelfUpdate(messages, printer)
+
 	go UpdateBinary(version, channel, messages)
+	PrintMessages(messages, printer)
 
+	return nil
+}
+
+// PrintMessages handle ActionMessage events and print messages to the screen
+func PrintMessages(messages chan ActionMessage, printer output.Printer) error {
 	for {
 		select {
 		case msg := <-messages:
-			if msg.debug && app.DebugMessages != "yes" {
-				break
-			}
 			if msg.err != nil {
+				printer.Error(msg.err)
 				return msg.err
 			}
 
-			if msg.msg != "" {
-				fmt.Printf("%s\n", msg.msg)
+			// ignore debug messages if no --debug=yes flag
+			if msg.debug {
+				if app.DebugMessages == "yes" && msg.msg != "" {
+					printer.DebugMessage(msg.msg, msg.comment)
+				}
+				break
 			}
 
-			if msg.state == "success" {
-				return nil
+			if msg.msg != "" {
+				color := ""
+				switch msg.msgType {
+				case "ok":
+					color = "green"
+				case "warn":
+					color = "yellow"
+				case "fail":
+					color = "red"
+				}
+				printer.Message(msg.msg, color, msg.comment)
 			}
-			if msg.state == "exit" {
+
+			if msg.action == "exit" {
 				return nil
 			}
 		}
 	}
-
-	return nil
-}
-
-
-// TODO Add script block to prevent from loading not in bash/zsh shells (as in rvm script)
-func PrintUseScript(info BinaryInfo) error {
-	fmt.Printf(`#
-# Function with path to choosen version of %s binary.
-# To remove function use unset:
-# unset -f %[1]s
-%[1]s()
-{
-%s "$@"
-}
-
-`, app.BintrayPackage, info.BinaryPath)
-	return nil
-}
-
-func PrintErrorScript() error {
-	fmt.Println("return 1")
-	return nil
 }
