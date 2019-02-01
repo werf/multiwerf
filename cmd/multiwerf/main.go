@@ -44,8 +44,8 @@ func main() {
 	useCmd := kpApp.
 		Command("use", "check for latest PATCH version and return a source script").
 		Action(func(c *kingpin.ParseContext) error {
-		return multiwerf.Use(versionStr, channelStr, []string{})
-	})
+			return multiwerf.Use(versionStr, channelStr, []string{})
+		})
 	useCmd.Arg("version", "Desired MAJOR.MINOR parts of a version").
 		HintOptions("1.0", "1.1").
 		Required().

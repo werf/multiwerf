@@ -3,8 +3,8 @@ package multiwerf
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/Masterminds/semver"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_CheckMajorMinor(t *testing.T) {
@@ -123,9 +123,9 @@ func Test_matchChannel(t *testing.T) {
 		"1.5.1-beta.2+20180103.1":              "beta",
 	}
 
-	falseInput:= map[string]string {
-		"1.10.1-dev": "alpha",
-		"3.1-1": "stable", // Not stable because of prerelease part. Hot fixes are versioned with metatada
+	falseInput := map[string]string{
+		"1.10.1-dev":    "alpha",
+		"3.1-1":         "stable", // Not stable because of prerelease part. Hot fixes are versioned with metatada
 		"1.0.0-alpha.1": "beta",
 	}
 
@@ -201,9 +201,8 @@ func Test_determineChannels_hasRc(t *testing.T) {
 	assert.Nil(t, res["stable"])
 }
 
-
 func Test_chooseLatestSimple(t *testing.T) {
-	input := []string {
+	input := []string{
 		"0.0.1-rc.321+test.ci.6",
 		"0.0.1+test.ci.4",
 		"0.0.1-alpha.2+test.ci.7",

@@ -2,16 +2,16 @@ package multiwerf
 
 import (
 	"fmt"
-	"path/filepath"
 	"os"
+	"path/filepath"
 
-	"github.com/flant/multiwerf/pkg/bintray"
 	"github.com/flant/multiwerf/pkg/app"
+	"github.com/flant/multiwerf/pkg/bintray"
 )
 
 type BinaryInfo struct {
 	BinaryPath string
-	Version string
+	Version    string
 }
 
 func LocalLatestVersion(version string, channel string, messages chan ActionMessage) string {
@@ -34,22 +34,22 @@ func UpdateBinary(version string, channel string, messages chan ActionMessage) (
 	pkgInfo, err := btClient.GetPackage()
 	if err != nil {
 		messages <- ActionMessage{
-			msg:   fmt.Sprintf("package %s/%s/%s GET info error: %v", app.BintraySubject, app.BintrayRepo, app.BintrayPackage, err),
+			msg:     fmt.Sprintf("package %s/%s/%s GET info error: %v", app.BintraySubject, app.BintrayRepo, app.BintrayPackage, err),
 			msgType: "fail",
-			action: "exit"}
+			action:  "exit"}
 		return
 	}
 
 	versions := bintray.GetPackageVersions(pkgInfo)
 	if len(versions) == 0 {
 		messages <- ActionMessage{
-			msg:   fmt.Sprintf("No versions found for package %s/%s/%s", app.BintraySubject, app.BintrayRepo, app.BintrayPackage),
+			msg:     fmt.Sprintf("No versions found for package %s/%s/%s", app.BintraySubject, app.BintrayRepo, app.BintrayPackage),
 			msgType: "warn",
-			action: "exit"}
+			action:  "exit"}
 		return
 	} else {
 		messages <- ActionMessage{
-			msg: fmt.Sprintf("Discover %d versions of package %s", len(versions), app.BintrayPackage),
+			msg:   fmt.Sprintf("Discover %d versions of package %s", len(versions), app.BintrayPackage),
 			debug: true}
 	}
 
@@ -63,12 +63,12 @@ func UpdateBinary(version string, channel string, messages chan ActionMessage) (
 	// TODO use local version if no remote latest version!
 	if latestVersion == "" {
 		messages <- ActionMessage{
-			err:   fmt.Errorf("No %s version found for %s version of package %s/%s/%s", channel, version, app.BintraySubject, app.BintrayRepo, app.BintrayPackage),
+			err:    fmt.Errorf("No %s version found for %s version of package %s/%s/%s", channel, version, app.BintraySubject, app.BintrayRepo, app.BintrayPackage),
 			action: "exit"}
 		return
 	}
 	messages <- ActionMessage{
-		msg: fmt.Sprintf("Detect version '%s' as latest for channel %s@%s", latestVersion, version, channel),
+		msg:     fmt.Sprintf("Detect version '%s' as latest for channel %s@%s", latestVersion, version, channel),
 		msgType: "ok"}
 
 	werfStorageDir, err := TildeExpand(app.StorageDir)
@@ -80,25 +80,24 @@ func UpdateBinary(version string, channel string, messages chan ActionMessage) (
 	dstPath := filepath.Join(werfStorageDir, latestVersion)
 	files := ReleaseFiles(app.BintrayPackage, latestVersion, app.OsArch)
 	messages <- ActionMessage{
-		msg: fmt.Sprintf("dstPath is '%s', files: %+v", dstPath, files),
+		msg:   fmt.Sprintf("dstPath is '%s', files: %+v", dstPath, files),
 		debug: true}
-
 
 	// check hash of local binary
 	match, err := VerifyReleaseFileHash(dstPath, files["hash"], files["program"])
 	if err != nil {
 		messages <- ActionMessage{
-			msg: fmt.Sprintf("verifying local file error: %v", err ),
+			msg:   fmt.Sprintf("verifying local file error: %v", err),
 			debug: true}
 	}
 	if match {
 		messages <- ActionMessage{
 			comment: "no update needed",
-			msg:   fmt.Sprintf("werf %s@%s stays at %s", version, channel, latestVersion),
-			msgType:"ok",
-			action: "exit"}
+			msg:     fmt.Sprintf("werf %s@%s stays at %s", version, channel, latestVersion),
+			msgType: "ok",
+			action:  "exit"}
 		return BinaryInfo{
-			Version: latestVersion,
+			Version:    latestVersion,
 			BinaryPath: filepath.Join(dstPath, files["program"]),
 		}
 	}
@@ -126,25 +125,25 @@ func UpdateBinary(version string, channel string, messages chan ActionMessage) (
 	match, err = VerifyReleaseFileHash(dstPath, files["hash"], files["program"])
 	if err != nil {
 		messages <- ActionMessage{
-			err:   fmt.Errorf("verifying release error: %v", err),
+			err:    fmt.Errorf("verifying release error: %v", err),
 			action: "exit"}
 		return
 	}
 	if !match {
 		// Not match — ERROR and exit
 		messages <- ActionMessage{
-			err: fmt.Errorf("hash of '%s' is not verified!", files["program"]),
+			err:   fmt.Errorf("hash of '%s' is not verified!", files["program"]),
 			stage: "exit"}
 		return
 	}
 
 	messages <- ActionMessage{
 		comment: fmt.Sprintf("# update %s success", app.BintrayPackage),
-		msg:   fmt.Sprintf("werf %s@%s updated to %s", version, channel, latestVersion),
+		msg:     fmt.Sprintf("werf %s@%s updated to %s", version, channel, latestVersion),
 		msgType: "ok",
-		action: "exit"}
+		action:  "exit"}
 	return BinaryInfo{
-		Version: latestVersion,
+		Version:    latestVersion,
 		BinaryPath: filepath.Join(dstPath, files["program"]),
 	}
 }

@@ -5,7 +5,6 @@ import (
 )
 
 type SimplePrint struct {
-
 }
 
 func NewSimplePrint() *SimplePrint {

@@ -1,14 +1,14 @@
 package multiwerf
 
 import (
+	"bufio"
 	"crypto/sha256"
 	"fmt"
 	"math"
 	"os"
-	"strings"
-	"path/filepath"
 	"os/user"
-	"bufio"
+	"path/filepath"
+	"strings"
 )
 
 const fileChunkSize = int64(1024 * 1024) // 1Mb blocks
@@ -57,11 +57,10 @@ func CalculateSHA256(filePath string) (string, error) {
 	return fmt.Sprintf("%x", res), nil
 }
 
-
 func ReleaseFiles(pkg string, version string, osArch string) map[string]string {
-	files := map[string]string {
+	files := map[string]string{
 		"hash": "SHA256SUMS",
-		"sig": "SHA256SUMS.sig",
+		"sig":  "SHA256SUMS.sig",
 	}
 	fileExt := ""
 	if strings.Contains(osArch, "windows") {

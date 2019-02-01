@@ -5,7 +5,6 @@ import (
 )
 
 type ScriptPrint struct {
-
 }
 
 func NewScriptPrint() *ScriptPrint {
@@ -43,7 +42,6 @@ func (s *ScriptPrint) Error(err error) {
 	fmt.Println("return 1")
 	return
 }
-
 
 type Script struct {
 	Printer *ScriptPrint

@@ -2,14 +2,13 @@ package http
 
 import (
 	"fmt"
-	netHttp "net/http"
+	"io"
 	"io/ioutil"
+	netHttp "net/http"
 	"os"
 	"path/filepath"
-	"io"
 	"time"
 )
-
 
 func MakeRestAPICall(method string, url string) (content string, err error) {
 	var netClient = &netHttp.Client{
@@ -42,7 +41,7 @@ func DownloadLargeFile(srcUrl string, dstPath string, name string) (err error) {
 
 	// Create the file
 	out, err := os.Create(filePath)
-	if err != nil  {
+	if err != nil {
 		return err
 	}
 	defer out.Close()
@@ -65,7 +64,7 @@ func DownloadLargeFile(srcUrl string, dstPath string, name string) (err error) {
 	//fmt.Printf("start copy\n")
 	// Stream response body to a file
 	_, err = io.Copy(out, resp.Body)
-	if err != nil  {
+	if err != nil {
 		//fmt.Printf("Copy error: %v\n", err)
 		return err
 	}
