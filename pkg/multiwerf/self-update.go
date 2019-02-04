@@ -8,6 +8,7 @@ import (
 
 	"github.com/flant/multiwerf/pkg/app"
 	"github.com/flant/multiwerf/pkg/bintray"
+	"strings"
 )
 
 var multiwerfProlog = fmt.Sprintf("%s %s self-update", app.AppName, app.Version)
@@ -20,24 +21,21 @@ var multiwerfProlog = fmt.Sprintf("%s %s self-update", app.AppName, app.Version)
 // debug — just show a message
 // multiwerf has no option to exit on self-update errors.
 func SelfUpdate(messages chan ActionMessage) {
+	selfPath := ""
 	if app.SelfUpdate == "yes" {
-		selfPath := DoSelfUpdate(messages)
-		if selfPath != "" {
-			err := ExecUpdatedBinary(selfPath)
-			if err != nil {
-				messages <- ActionMessage{
-					comment: "self update error",
-					msg:     fmt.Sprintf("%s: exec of updated binary failed: %v", multiwerfProlog, err),
-					msgType: "fail",
-					stage:   "self-update"}
-			} else {
-				// Cannot be reached because of exec syscall.
-				return
-			}
-		} else {
-			messages <- ActionMessage{action: "exit"}
+		selfPath = DoSelfUpdate(messages)
+	}
+	if selfPath != "" {
+		err := ExecUpdatedBinary(selfPath)
+		if err != nil {
+			messages <- ActionMessage{
+				comment: "self update error",
+				msg:     fmt.Sprintf("%s: exec of updated binary failed: %v", multiwerfProlog, err),
+				msgType: "fail",
+				stage:   "self-update"}
 		}
 	}
+	messages <- ActionMessage{action: "exit"}
 }
 
 func DoSelfUpdate(messages chan ActionMessage) string {
@@ -110,6 +108,7 @@ func DoSelfUpdate(messages chan ActionMessage) string {
 			stage:   "self-update"}
 		return ""
 	}
+
 	if latestVersion == app.Version {
 		messages <- ActionMessage{
 			msg:     fmt.Sprintf("%s: already latest version", multiwerfProlog),
@@ -143,6 +142,35 @@ func DoSelfUpdate(messages chan ActionMessage) string {
 	}
 
 	// TODO add hash verification!
+	sha256sums, err := btClient.FetchReleaseFile(latestVersion, files["hash"])
+	if err != nil {
+		messages <- ActionMessage{
+			comment: "self update error",
+			msg:     fmt.Sprintf("%s: download %s error: %v", multiwerfProlog, files["hash"], err),
+			msgType: "fail",
+			stage:   "self-update"}
+		return ""
+	}
+
+	// check hash of local binary
+	hashes := LoadHashMap(strings.NewReader(sha256sums))
+	match, err := VerifyReleaseFileHashFromHashes(selfDir, hashes, files["program"])
+	if err != nil {
+		messages <- ActionMessage{
+			comment: "self update error",
+			msg:     fmt.Sprintf("%s: %s hash verification error: %v", multiwerfProlog, files["program"], err),
+			msgType: "fail",
+			stage:   "self-update"}
+		return ""
+	}
+	if !match {
+		messages <- ActionMessage{
+			comment: "self update error",
+			msg:     fmt.Sprintf("%s: %s hash is not verified", multiwerfProlog, files["program"]),
+			msgType: "fail",
+			stage:   "self-update"}
+		return ""
+	}
 
 	// chmod +x for files["program"]
 	err = os.Chmod(filepath.Join(selfDir, downloadFiles["program"]), 0755)
@@ -150,7 +178,7 @@ func DoSelfUpdate(messages chan ActionMessage) string {
 		messages <- ActionMessage{
 			comment: "self update error",
 			msg:     fmt.Sprintf("%s: chmod 755 failed for %s: %v", multiwerfProlog, files["program"], err),
-			msgType: "error",
+			msgType: "fail",
 			stage:   "self-update"}
 		return ""
 	}
@@ -160,7 +188,7 @@ func DoSelfUpdate(messages chan ActionMessage) string {
 		messages <- ActionMessage{
 			comment: "self update error",
 			msg:     fmt.Sprintf("%s: replace executable error: %v", multiwerfProlog, err),
-			msgType: "error",
+			msgType: "fail",
 			stage:   "self-update"}
 		return ""
 	}
@@ -168,7 +196,6 @@ func DoSelfUpdate(messages chan ActionMessage) string {
 	messages <- ActionMessage{
 		msg:     fmt.Sprintf("%s: successfully updated to %s", multiwerfProlog, latestVersion),
 		msgType: "ok",
-		action:  "exit",
 		stage:   "self-update"}
 	return selfPath
 }
