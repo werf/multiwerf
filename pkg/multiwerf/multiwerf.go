@@ -1,6 +1,7 @@
 package multiwerf
 
 import (
+	"fmt"
 	"github.com/flant/multiwerf/pkg/app"
 	"github.com/flant/multiwerf/pkg/output"
 )
@@ -11,6 +12,9 @@ var AvailableChannels = []string{
 	"rc",
 	"stable",
 }
+
+// Effective path to a storage.
+var MultiwerfStorageDir string
 
 // use and update actions send messages
 type ActionMessage struct {
@@ -23,41 +27,93 @@ type ActionMessage struct {
 	debug   bool   // debug msg and comment are displayed only if --debug=yes flag is set
 }
 
-func Use(version string, channel string, args []string) error {
-	err := CheckMajorMinor(version)
+func Use(version string, channel string, args []string) (err error) {
+	messages := make(chan ActionMessage, 0)
+	script := output.NewScript()
+	binUpdater := NewBinaryUpdater(messages)
+
+	// Check version argument and storage path
+	go func() {
+		err := CheckMajorMinor(version)
+		if err != nil {
+			messages <- ActionMessage{err: err}
+		}
+
+		MultiwerfStorageDir, err = ExpandAndVerifyDirectoryPath(app.StorageDir)
+		if err != nil {
+			messages <- ActionMessage{err: err}
+		}
+
+		messages <- ActionMessage{action: "exit"}
+	}()
+	err = PrintMessages(messages, script.Printer)
 	if err != nil {
 		return err
 	}
 
-	messages := make(chan ActionMessage, 0)
-	script := output.NewScript()
+	// update multiwerf binary (self update)
+	go func() {
+		SelfUpdate(messages)
+	}()
+	err = PrintMessages(messages, script.Printer)
+	if err != nil {
+		return err
+	}
 
-	SelfUpdate(messages, script.Printer)
-
+	// Update to latest version if neede. Use local version if remote communication failed.
+	// Exit with error if no binaries found.
 	var binaryInfo BinaryInfo
 	go func() {
-		binaryInfo = UpdateBinary(version, channel, messages)
+		binaryInfo = binUpdater.GetLatestBinaryInfo(version, channel)
 	}()
-
-	PrintMessages(messages, script.Printer)
+	err = PrintMessages(messages, script.Printer)
+	if err != nil {
+		return err
+	}
 
 	return script.PrintBinaryAliasFunction(app.BintrayPackage, binaryInfo.BinaryPath)
 }
 
-func Update(version string, channel string, args []string) error {
-	err := CheckMajorMinor(version)
+func Update(version string, channel string, args []string) (err error) {
+	messages := make(chan ActionMessage, 0)
+	printer := output.NewSimplePrint()
+	binUpdater := NewBinaryUpdater(messages)
+
+	// Check version argument and storage path
+	go func() {
+		err := CheckMajorMinor(version)
+		if err != nil {
+			messages <- ActionMessage{err: err}
+		}
+
+		MultiwerfStorageDir, err = ExpandAndVerifyDirectoryPath(app.StorageDir)
+		if err != nil {
+			messages <- ActionMessage{err: err}
+		}
+
+		messages <- ActionMessage{msg: fmt.Sprintf("Major minor Checks done, storage dir is %s", MultiwerfStorageDir), debug: true}
+		messages <- ActionMessage{action: "exit"}
+	}()
+	err = PrintMessages(messages, printer)
 	if err != nil {
 		return err
 	}
 
-	messages := make(chan ActionMessage, 0)
-	printer := output.NewSimplePrint()
-
-	SelfUpdate(messages, printer)
-
-	go UpdateBinary(version, channel, messages)
-	PrintMessages(messages, printer)
-
+	// update multiwerf binary (self update)
+	go func() {
+		messages <- ActionMessage{msg: "Start SelfUpdate", debug: true}
+		SelfUpdate(messages)
+	}()
+	err = PrintMessages(messages, printer)
+	if err != nil {
+		return err
+	}
+	// Update binary to latest version. Exit with error if remote communication failed.
+	go binUpdater.DownloadLatest(version, channel)
+	err = PrintMessages(messages, printer)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -68,6 +124,7 @@ func PrintMessages(messages chan ActionMessage, printer output.Printer) error {
 		case msg := <-messages:
 			if msg.err != nil {
 				printer.Error(msg.err)
+				// TODO prevent this error print with kingpin default handler
 				return msg.err
 			}
 

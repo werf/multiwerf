@@ -13,10 +13,10 @@ func NewScriptPrint() *ScriptPrint {
 
 func (p *ScriptPrint) Cprintf(color string, format string, args ...interface{}) (n int, err error) {
 	if color == "" || color == "none" {
-		return fmt.Print("echo ", fmt.Sprintf(format, args...), "\n")
+		return fmt.Printf("echo '%s'\n", fmt.Sprintf(format, args...))
 	}
 
-	return fmt.Print("echo -e ", ColorCodes[color]["quoted"], fmt.Sprintf(format, args...), ColorCodes["stop"]["quoted"], "\n")
+	return fmt.Printf("echo -e %s'%s'%s\n", ColorCodes[color]["quoted"], fmt.Sprintf(format, args...), ColorCodes["stop"]["quoted"])
 }
 
 func (p *ScriptPrint) CommentPrintf(format string, args ...interface{}) (n int, err error) {

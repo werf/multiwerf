@@ -29,7 +29,12 @@ func main() {
 	updateCmd := kpApp.
 		Command("update", "update binary to the latest PATCH version").
 		Action(func(c *kingpin.ParseContext) error {
-			return multiwerf.Update(versionStr, channelStr, []string{})
+			// TODO add special error to exit with 1 and not print error message with kingpin
+			err := multiwerf.Update(versionStr, channelStr, []string{})
+			if err != nil {
+				os.Exit(1)
+			}
+			return nil
 		})
 	updateCmd.Arg("version", "Desired MAJOR.MINOR parts of a version").
 		HintOptions("1.0", "1.1").
@@ -44,7 +49,12 @@ func main() {
 	useCmd := kpApp.
 		Command("use", "check for latest PATCH version and return a source script").
 		Action(func(c *kingpin.ParseContext) error {
-			return multiwerf.Use(versionStr, channelStr, []string{})
+			// TODO add special error to exit with 1 and not print error message with kingpin
+			err := multiwerf.Use(versionStr, channelStr, []string{})
+			if err != nil {
+				os.Exit(1)
+			}
+			return nil
 		})
 	useCmd.Arg("version", "Desired MAJOR.MINOR parts of a version").
 		HintOptions("1.0", "1.1").

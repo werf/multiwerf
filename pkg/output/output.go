@@ -9,16 +9,16 @@ type Printer interface {
 
 var ColorCodes = map[string]map[string]string{
 	"green": {
+		"code":   "\x1b[32m",
+		"quoted": "\"\\e[32m\"",
+	},
+	"red": {
 		"code":   "\x1b[31m",
 		"quoted": "\"\\e[31m\"",
 	},
-	"red": {
+	"yellow": {
 		"code":   "\x1b[33m",
 		"quoted": "\"\\e[33m\"",
-	},
-	"yellow": {
-		"code":   "\x1b[32m",
-		"quoted": "\"\\e[32m\"",
 	},
 	"stop": {
 		"code":   "\x1b[0m",
