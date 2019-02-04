@@ -202,13 +202,5 @@ func ExpandAndVerifyDirectoryPath(path string) (resPath string, err error) {
 		return
 	}
 
-	exists, err := DirExists(resPath)
-	if err != nil {
-		return
-	}
-	if !exists {
-		return "", fmt.Errorf("path '%s' doesn't exists", resPath)
-	}
-
 	return resPath, nil
 }

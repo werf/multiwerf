@@ -17,7 +17,7 @@ function check_os_arch {
   if ! echo "${supported}" | tr ' ' '\n' | grep -q "${OS}-${ARCH}"; then
     cat <<EOF
 
-${PROGRAM} is not currently supported on ${OS}-${ARCH}.
+${PROGRAM} installation is not currently supported on ${OS}-${ARCH}.
 
 See https://github.com/flant/multiwerf for more information.
 
@@ -58,8 +58,19 @@ check_os_arch
 VERSION="$(get_latest_version "${BINTRAY_LATEST_VERSION_URL}")"
 MULTIWERF_BIN_NAME="multiwerf-${OS}-${ARCH}-${VERSION}"
 echo "Downloading ${MULTIWERF_BIN_NAME} from bintray..."
-curl -Ls "${BINTRAY_DL_URL_BASE}/${VERSION}/${MULTIWERF_BIN_NAME}" -o ${PROGRAM}
+curl -Ls "${BINTRAY_DL_URL_BASE}/${VERSION}/${MULTIWERF_BIN_NAME}" -o "${MULTIWERF_BIN_NAME}"
 
+# check hash
+curl -Ls "${BINTRAY_DL_URL_BASE}/${VERSION}/SHA256SUMS" -o "${PROGRAM}.sha256sums"
+if ! (sha256sum -c --ignore-missing ${PROGRAM}.sha256sums) ; then
+  echo "${MULTIWERF_BIN_NAME} sha256 hash is not verified. Please download and check hash manually."
+  rm "${PROGRAM}.sha256sums"
+  rm "${MULTIWERF_BIN_NAME}"
+  exit 1
+fi
+
+rm "${PROGRAM}.sha256sums"
+mv "${MULTIWERF_BIN_NAME}" "${PROGRAM}"
 chmod +x "${PROGRAM}"
 
 cat <<EOF
