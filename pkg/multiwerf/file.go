@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"crypto/sha256"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"os/user"
@@ -57,6 +58,7 @@ func CalculateSHA256(filePath string) (string, error) {
 	return fmt.Sprintf("%x", res), nil
 }
 
+// ReleaseFiles return a map with release filenames of package pkg for particular osArch and version
 func ReleaseFiles(pkg string, version string, osArch string) map[string]string {
 	files := map[string]string{
 		"hash": "SHA256SUMS",
@@ -81,8 +83,12 @@ func LoadHashFile(dir string, fileName string) (hashes map[string]string) {
 	}
 	defer file.Close()
 
+	return LoadHashMap(file)
+}
+
+func LoadHashMap(hashesReader io.Reader) (hashes map[string]string) {
 	hashes = map[string]string{}
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(hashesReader)
 	for scanner.Scan() {
 		hashLine := scanner.Text()
 		parts := strings.SplitN(hashLine, " ", 2)
@@ -163,6 +169,10 @@ func VerifyReleaseFileHash(dir string, hashFile string, targetFile string) (bool
 
 	hashes := LoadHashFile(dir, hashFile)
 
+	return VerifyReleaseFileHashFromHashes(dir, hashes, targetFile)
+}
+
+func VerifyReleaseFileHashFromHashes(dir string, hashes map[string]string, targetFile string) (bool, error) {
 	//fmt.Printf("hashes: %+v", hashes)
 
 	hashForFile, hasHash := hashes[targetFile]

@@ -19,6 +19,7 @@ type BintrayEvent struct {
 type BintrayClient interface {
 	GetPackage() (string, error)
 	DownloadRelease(version string, dstDir string, files map[string]string) error
+	FetchReleaseFile(version string, fileName string) (string, error)
 	EventCh() chan BintrayEvent
 }
 
@@ -82,6 +83,12 @@ func (bc *MainBintrayClient) DownloadRelease(version string, dstDir string, file
 	}
 
 	return nil
+}
+
+func (bc *MainBintrayClient) FetchReleaseFile(version string, fileName string) (string, error) {
+	srcUrl := fmt.Sprintf("%s/%s/%s/%s", btDlUrl, bc.Subject, bc.Repo, version)
+	fileUrl := fmt.Sprintf("%s/%s", srcUrl, fileName)
+	return http.MakeRestAPICall("GET", fileUrl)
 }
 
 func (bc *MainBintrayClient) EventCh() chan BintrayEvent {

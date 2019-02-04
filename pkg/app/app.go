@@ -18,6 +18,7 @@ var OsArch = "linux-amd64"
 var StorageDir = "~/.multiwerf"
 
 var SelfUpdate = "yes"
+var Update = "yes"
 var DebugMessages = "no"
 
 func SetupGlobalSettings(kpApp *kingpin.Application) {
@@ -51,6 +52,11 @@ func SetupGlobalSettings(kpApp *kingpin.Application) {
 		Envar("MULTIWERF_SELF_UPDATE").
 		Default(SelfUpdate).
 		StringVar(&SelfUpdate)
+
+	kpApp.Flag("update", "set to no to disable update in use command").
+		Envar("MULTIWERF_UPDATE").
+		Default(Update).
+		StringVar(&Update)
 
 	kpApp.Flag("debug", "set to yes to turn on debug messages").
 		Envar("MULTIWERF_DEBUG").

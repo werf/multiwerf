@@ -109,11 +109,15 @@ func (u *MainBinaryUpdater) DownloadLatest(version string, channel string) (binI
 // Checks for local versions and remote versions. If no remote version is available — use
 // local version.
 func (u *MainBinaryUpdater) GetLatestBinaryInfo(version string, channel string) (binInfo BinaryInfo) {
-	remoteLatestVersion, err := RemoteLatestVersion(version, channel, u.Messages, u.BintrayClient)
-	if err != nil {
-		u.Messages <- ActionMessage{
-			msg:     err.Error(),
-			msgType: "warn"}
+	remoteLatestVersion := ""
+	if app.Update == "yes" {
+		var err error
+		remoteLatestVersion, err = RemoteLatestVersion(version, channel, u.Messages, u.BintrayClient)
+		if err != nil {
+			u.Messages <- ActionMessage{
+				msg:     err.Error(),
+				msgType: "warn"}
+		}
 	}
 
 	localBinaryInfo, err := LocalLatestBinaryInfo(version, channel, u.Messages)
