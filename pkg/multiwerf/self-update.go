@@ -8,10 +8,9 @@ import (
 
 	"github.com/flant/multiwerf/pkg/app"
 	"github.com/flant/multiwerf/pkg/bintray"
-	"github.com/flant/multiwerf/pkg/output"
 )
 
-var multiwerfProlog = fmt.Sprintf("multiwerf %s self-update", app.Version)
+var multiwerfProlog = fmt.Sprintf("%s %s self-update", app.AppName, app.Version)
 
 // SelfUpdate checks for new version of multiwerf, download it and execute a new proccess
 // success — downloaded new version, need exec
@@ -20,27 +19,25 @@ var multiwerfProlog = fmt.Sprintf("multiwerf %s self-update", app.Version)
 // error — no versions in bintray, download problems, etc. — stop self update
 // debug — just show a message
 // multiwerf has no option to exit on self-update errors.
-func SelfUpdate(messages chan ActionMessage, printer output.Printer) error {
-	go func() {
-		if app.SelfUpdate == "yes" {
-			selfPath := DoSelfUpdate(messages)
-			if selfPath != "" {
-				err := ExecUpdatedBinary(selfPath)
-				if err != nil {
-					messages <- ActionMessage{
-						comment: "self update error",
-						msg:     fmt.Sprintf("%s: exec of updated binary failed: %v", multiwerfProlog, err),
-						msgType: "fail",
-						stage:   "self-update"}
-				} else {
-					// Cannot be reached because of exec syscall.
-					return
-				}
+func SelfUpdate(messages chan ActionMessage) {
+	if app.SelfUpdate == "yes" {
+		selfPath := DoSelfUpdate(messages)
+		if selfPath != "" {
+			err := ExecUpdatedBinary(selfPath)
+			if err != nil {
+				messages <- ActionMessage{
+					comment: "self update error",
+					msg:     fmt.Sprintf("%s: exec of updated binary failed: %v", multiwerfProlog, err),
+					msgType: "fail",
+					stage:   "self-update"}
+			} else {
+				// Cannot be reached because of exec syscall.
+				return
 			}
+		} else {
+			messages <- ActionMessage{action: "exit"}
 		}
-	}()
-
-	return PrintMessages(messages, printer)
+	}
 }
 
 func DoSelfUpdate(messages chan ActionMessage) string {
@@ -75,8 +72,8 @@ func DoSelfUpdate(messages chan ActionMessage) string {
 	if err != nil {
 		messages <- ActionMessage{
 			comment: "self update error",
-			msg:     fmt.Sprintf("%s: package %s/%s/%s GET info error: %v", multiwerfProlog, app.SelfBintraySubject, app.SelfBintrayRepo, app.SelfBintrayPackage, err),
-			msgType: "error",
+			msg:     fmt.Sprintf("%s: package %s GET info error: %v", multiwerfProlog, app.SelfBintrayPackage, err),
+			msgType: "fail",
 			stage:   "self-update"}
 		return ""
 	}
@@ -86,7 +83,7 @@ func DoSelfUpdate(messages chan ActionMessage) string {
 		messages <- ActionMessage{
 			comment: "self update error",
 			msg:     fmt.Sprintf("%s: no versions found", multiwerfProlog),
-			msgType: "error",
+			msgType: "fail",
 			stage:   "self-update"}
 		return ""
 	} else {
@@ -101,7 +98,7 @@ func DoSelfUpdate(messages chan ActionMessage) string {
 		messages <- ActionMessage{
 			comment: "self update error",
 			msg:     fmt.Sprintf("%s: cannot choose latest version: %v", multiwerfProlog, err),
-			msgType: "error",
+			msgType: "fail",
 			stage:   "self-update"}
 		return ""
 	}
@@ -109,15 +106,15 @@ func DoSelfUpdate(messages chan ActionMessage) string {
 		messages <- ActionMessage{
 			comment: "self update error",
 			msg:     fmt.Sprintf("%s: no latest version found", multiwerfProlog),
-			msgType: "error",
+			msgType: "fail",
 			stage:   "self-update"}
 		return ""
 	}
 	if latestVersion == app.Version {
 		messages <- ActionMessage{
-			msg:    fmt.Sprintf("%s: already latest version", multiwerfProlog),
-			action: "exit",
-			stage:  "self-update"}
+			msg:     fmt.Sprintf("%s: already latest version", multiwerfProlog),
+			msgType: "ok",
+			stage:   "self-update"}
 		return ""
 	}
 
@@ -140,7 +137,7 @@ func DoSelfUpdate(messages chan ActionMessage) string {
 		messages <- ActionMessage{
 			comment: "self update error",
 			msg:     fmt.Sprintf("%s: download release error: %v", multiwerfProlog, err),
-			msgType: "error",
+			msgType: "fail",
 			stage:   "self-update"}
 		return ""
 	}

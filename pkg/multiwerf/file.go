@@ -117,6 +117,20 @@ func FileExists(dir string, name string) (bool, error) {
 	return false, nil
 }
 
+func DirExists(dir string) (bool, error) {
+	info, err := os.Stat(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	if info.IsDir() {
+		return true, err
+	}
+	return false, nil
+}
+
 func TildeExpand(path string) (string, error) {
 	if len(path) == 0 || path[0] != '~' {
 		return path, nil
@@ -170,4 +184,21 @@ func VerifyReleaseFileHash(dir string, hashFile string, targetFile string) (bool
 	}
 
 	return true, nil
+}
+
+func ExpandAndVerifyDirectoryPath(path string) (resPath string, err error) {
+	resPath, err = TildeExpand(path)
+	if err != nil {
+		return
+	}
+
+	exists, err := DirExists(resPath)
+	if err != nil {
+		return
+	}
+	if !exists {
+		return "", fmt.Errorf("path '%s' doesn't exists", resPath)
+	}
+
+	return resPath, nil
 }

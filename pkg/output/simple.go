@@ -28,5 +28,5 @@ func (p *SimplePrint) DebugMessage(message, comment string) {
 }
 
 func (p *SimplePrint) Message(message, color, comment string) {
-	fmt.Printf("%s\n", message)
+	p.Cprintf(color, "%s\n", message)
 }
