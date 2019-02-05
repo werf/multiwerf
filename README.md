@@ -1,28 +1,31 @@
 [![CircleCI](https://circleci.com/gh/flant/multiwerf/tree/master.svg?style=svg)](https://circleci.com/gh/flant/multiwerf/tree/master)
 [![Download](https://api.bintray.com/packages/flant/multiwerf/multiwerf/images/download.svg)](https://bintray.com/flant/multiwerf/multiwerf/_latestVersion)
+[![Go Report Card](https://goreportcard.com/badge/github.com/flant/multiwerf)](https://goreportcard.com/report/github.com/flant/multiwerf)
 
 # multiwerf
-Tool to (auto)update a binary `werf` release to the latest available version
+Self-updatable version manager of [werf](https://github.com/flant/werf) binaries with awareness of release channels.
 
-## Installation
+## Quick install
 
-The simplest way is to install to current directory with install.sh script:
+The simplest way is to get latest version of multiwerf to current directory with get.sh script:
 
 ```
-curl -L https://raw.githubusercontent.com/flant/multiwerf/master/install.sh | bash
+curl -L https://raw.githubusercontent.com/flant/multiwerf/master/get.sh | bash
 ```
 
-Also you can manually download binary for your platform from bintray: [latest version](https://bintray.com/flant/multiwerf/multiwerf/_latestVersion).
+Also you can manually download a binary for your platform from [github releases](https://github.com/flant/multiwerf/releases) or from [bintray latest version](https://bintray.com/flant/multiwerf/multiwerf/_latestVersion).
+
+It is recommended to install multiwerf with enabled self updates as described in [Installation and update](#installation-and-update).
 
 ## Usage
 
 General usage of `multiwerf` is to download a werf binary and setup a `werf` function for the shell.
 
 ```
-source <(multiwerf 1.0)
+source <(multiwerf use 1.0 alpha)
 ```
 
-This command will download a stable version of `werf` into ~/.multiwerf directory and setup a function to run this version.
+This command will download the latest version of `werf` from `1.0/alpha` channel into ~/.multiwerf/<version> directory and setup a shell function to run this version.
 
 
 ## Commands
@@ -30,9 +33,9 @@ This command will download a stable version of `werf` into ~/.multiwerf director
 - `multiwerf use MAJOR.MINOR CHANNEL` — check for latest version of multiwerf, self update in background if needed, check for latest version in MAJOR.MINOR series and return a script for use with `source`
 - `multiwerf update MAJOR.MINOR CHANNEL` — update binary to the latest version in MAJOR.MINOR series
 
-First positional argument is in form of MAJOR.MINOR. More on this in Versioning.
+First positional argument is in form of MAJOR.MINOR. More on this in [Versioning](#versioning).
 
-CHANNEL is one of: alpha, beta, rc, stable
+CHANNEL is one of: alpha, beta, rc, ea, stable
 
 Binaries are downloaded to a directory `$HOME/.multiwerf/VERSION/`. For example, version `1.0.1-alpha.3` of `werf` binaries for user `gitlab-runner` will be stored as
 
@@ -140,13 +143,18 @@ The first version of `multiwerf` hardcode this information at complile time and 
 - `beta` for environments where downtime is acceptable, i.e., dev, test, some kind of stages
 - `alpha` for bleeding edge environments to give a try for fixes and new features
 
-## Installation and update
+## Installation and self-update
 
-Multiwerf checks for new version in case of use and update commands. If new version in bintray.com/flant/multiwerf/multiwerf is found, multiwerf download it and start a new proccess with the same arguments and environment.
+Before checking for new versions of werf in use and update commands, multiwerf checks for self new versions. If new version is available in bintray.com/flant/multiwerf/multiwerf, multiwerf download it and  start a new proccess with the same arguments and environment as current.
 
 `--self-update=no` flag and `MULTIWERF_SELF_UPDATE=no` environment variable are available to turn off self updates.
 
 Self update is disabled if `multiwerf` binary isn't owned by user that run it and if file is not writable by owner.
+
+There are 2 recommended ways to install multiwerf:
+
+1. Put multiwerf into $HOME/bin directory. This is a best scenario for gitlab-runner setup or for local development. In this case multiwerf will check for new version no more than every day and new versions of werf will be checked no more than every hour.
+2. Put multiwerf into /usr/local/bin directory and set root as owner. This setup requires to define a cronjob for user root with command `multiwerf update 1.0`. In this case users cannot update multiwerf but self-update is working.
 
 ## Offline tips
 
