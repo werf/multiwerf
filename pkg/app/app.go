@@ -21,6 +21,7 @@ var SelfUpdate = "yes"
 var Update = "yes"
 var DebugMessages = "no"
 
+// SetupGlobalSettings init global flags with default values
 func SetupGlobalSettings(kpApp *kingpin.Application) {
 	kpApp.Flag("bintray-subject", "subject part for bintray api").
 		Envar("MULTIWERF_BINTRAY_SUBJECT").

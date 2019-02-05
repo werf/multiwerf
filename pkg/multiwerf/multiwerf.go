@@ -13,10 +13,10 @@ var AvailableChannels = []string{
 	"stable",
 }
 
-// Effective path to a storage.
+// MultiwerfStorageDir is an effective path to a storage
 var MultiwerfStorageDir string
 
-// use and update actions send messages
+// ActionMessage is used to send messages from go routines started in use and update commands
 type ActionMessage struct {
 	stage   string // stage of a program
 	action  string // action to perform (exit with error, exit 0, ...)
@@ -27,6 +27,7 @@ type ActionMessage struct {
 	debug   bool   // debug msg and comment are displayed only if --debug=yes flag is set
 }
 
+// Use prints a shell script with alias to the latest binary version available for the channel
 func Use(version string, channel string, args []string) (err error) {
 	messages := make(chan ActionMessage, 0)
 	script := output.NewScript()
@@ -74,6 +75,7 @@ func Use(version string, channel string, args []string) (err error) {
 	return script.PrintBinaryAliasFunction(app.BintrayPackage, binaryInfo.BinaryPath)
 }
 
+// Update checks for the latest available version and download it to StorageDir
 func Update(version string, channel string, args []string) (err error) {
 	messages := make(chan ActionMessage, 0)
 	printer := output.NewSimplePrint()

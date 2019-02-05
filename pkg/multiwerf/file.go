@@ -149,6 +149,7 @@ func TildeExpand(path string) (string, error) {
 	return filepath.Join(usr.HomeDir, path[1:]), nil
 }
 
+// VerifyReleaseFileHash verify targetFile in dir accroding to hashFile in dir
 // TODO transform to VerifyFileHash — return 4 states: no hash file, no target file, not match, match
 func VerifyReleaseFileHash(dir string, hashFile string, targetFile string) (bool, error) {
 	hashFileExists, err := FileExists(dir, hashFile)

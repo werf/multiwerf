@@ -108,9 +108,8 @@ func makePatchMap(versions []*semver.Version) (map[int64][]*semver.Version, []in
 func matchChannel(version *semver.Version, channel string) bool {
 	if channel == "stable" {
 		return version.Prerelease() == ""
-	} else {
-		return strings.HasPrefix(version.Prerelease(), channel)
 	}
+	return strings.HasPrefix(version.Prerelease(), channel)
 }
 
 // determineChannels returns the latest version for each available channel

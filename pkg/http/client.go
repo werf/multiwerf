@@ -18,12 +18,11 @@ func MakeRestAPICall(method string, url string) (content string, err error) {
 	response, err := netClient.Get(url)
 	if err != nil {
 		return
-	} else {
-		defer response.Body.Close()
-		data, _ := ioutil.ReadAll(response.Body)
-		content = string(data)
-		return
 	}
+	defer response.Body.Close()
+	data, _ := ioutil.ReadAll(response.Body)
+	content = string(data)
+	return
 }
 
 // DownloadLargeFile creates a dstPath/name file and write content form url

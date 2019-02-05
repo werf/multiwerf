@@ -20,11 +20,11 @@ type BinaryInfo struct {
 }
 
 type BinaryUpdater interface {
-	// this method is intented to update from remote source
-	// check remote — get local — if local need update — download and verify a hash
+	// this method is intended to update a binary from remote source
+	// check remote latest → get local latest → if local need update → download and verify a hash
 	// ↑no remote — error/exit
-	//                ↑no local — no error
-	//                                                   ↑ error if download failed or hash not verified
+	//                       ↑no local — no error
+	//                                                                 ↑ error if download failed or hash not verified
 	DownloadLatest(version string, channel string) (binInfo BinaryInfo)
 
 	// this method return BinaryInfo instance
@@ -45,7 +45,7 @@ func NewBinaryUpdater(messages chan ActionMessage) BinaryUpdater {
 	return result
 }
 
-// UpdateBinary check for new latest version in bintray.
+// DownloadLatest check for new latest version in bintray.
 // Exit with error on connection problems or if no versions found for version/channel
 // 1. Check for new version → print version
 // 2. Check hashes  existed binaries → print 'version stays'

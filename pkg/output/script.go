@@ -11,7 +11,7 @@ func NewScriptPrint() *ScriptPrint {
 	return &ScriptPrint{}
 }
 
-func (p *ScriptPrint) Cprintf(color string, format string, args ...interface{}) (n int, err error) {
+func (s *ScriptPrint) Cprintf(color string, format string, args ...interface{}) (n int, err error) {
 	if color == "" || color == "none" {
 		return fmt.Printf("echo '%s'\n", fmt.Sprintf(format, args...))
 	}
@@ -19,7 +19,7 @@ func (p *ScriptPrint) Cprintf(color string, format string, args ...interface{}) 
 	return fmt.Printf("echo -e %s'%s'%s\n", ColorCodes[color]["quoted"], fmt.Sprintf(format, args...), ColorCodes["stop"]["quoted"])
 }
 
-func (p *ScriptPrint) CommentPrintf(format string, args ...interface{}) (n int, err error) {
+func (s *ScriptPrint) CommentPrintf(format string, args ...interface{}) (n int, err error) {
 	return fmt.Print("# ", fmt.Sprintf(format, args...), "\n")
 }
 
@@ -53,10 +53,11 @@ func NewScript() *Script {
 	}
 }
 
+// PrintBinaryAliasFunction prints a shell script with alias function
 // TODO Add script block to prevent from loading not in bash/zsh shells (as in rvm script)
 func (s *Script) PrintBinaryAliasFunction(name, path string) error {
 	fmt.Printf(`#
-# Function with path to choosen version of %s binary.
+# Function with path to chosen version of %s binary.
 # To remove function use unset:
 # unset -f %[1]s
 %[1]s() {

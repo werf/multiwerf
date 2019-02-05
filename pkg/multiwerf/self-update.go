@@ -13,13 +13,8 @@ import (
 
 var multiwerfProlog = fmt.Sprintf("%s %s self-update", app.AppName, app.Version)
 
-// SelfUpdate checks for new version of multiwerf, download it and execute a new proccess
-// success — downloaded new version, need exec
-// success — already latest version
-// warning — cannot rewrite binary, self update disabled by spec
-// error — no versions in bintray, download problems, etc. — stop self update
-// debug — just show a message
-// multiwerf has no option to exit on self-update errors.
+// SelfUpdate checks for new version of multiwerf, download it and execute as a new process.
+// Note: multiwerf has no option to exit on self-update errors.
 func SelfUpdate(messages chan ActionMessage) {
 	selfPath := ""
 	if app.SelfUpdate == "yes" {
@@ -205,7 +200,7 @@ func DoSelfUpdate(messages chan ActionMessage) string {
 func GetSelfExecutableInfo() (path string, err error) {
 	selfPath, err := os.Executable()
 	if err != nil {
-		return "", fmt.Errorf("cannot get executabe info: %v", err)
+		return "", fmt.Errorf("cannot get executable info: %v", err)
 	}
 
 	return selfPath, nil
@@ -250,7 +245,7 @@ func ReplaceBinaryFile(dir string, currentName string, newName string) (err erro
 		return err
 	}
 
-	// move the new exectuable in to become the new program
+	// move the new executable in to become the new program
 	err = os.Rename(newPath, currentPath)
 
 	if err != nil {
