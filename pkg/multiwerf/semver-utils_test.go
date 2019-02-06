@@ -1,6 +1,7 @@
 package multiwerf
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/Masterminds/semver"
@@ -114,6 +115,7 @@ func Test_matchChannel(t *testing.T) {
 		"1.1.0-rc.1":                           "rc",
 		"1.1.0":                                "stable",
 		"1.1.1-alpha.1":                        "alpha",
+		"1.1.1-ea.27":                          "ea",
 		"1.1.1-rc.1":                           "rc",
 		"1.1.2":                                "stable",
 		"1.1.2-beta.2":                         "beta",
@@ -121,21 +123,59 @@ func Test_matchChannel(t *testing.T) {
 		"1.1.3-rc.1123213+123123123qweuf532fd": "rc",
 		"1.0+hotfix.321":                       "stable",
 		"1.5.1-beta.2+20180103.1":              "beta",
+		"1.6.2-ea.1123213+build.34":            "ea",
 	}
 
 	falseInput := map[string]string{
-		"1.10.1-dev":    "alpha",
-		"3.1-1":         "stable", // Not stable because of prerelease part. Hot fixes are versioned with metatada
-		"1.0.0-alpha.1": "beta",
+		"1.10.1-dev":          "alpha",
+		"3.1-1":               "stable", // Not stable because of prerelease part. Hot fixes are versioned with metatada
+		"1.0.0-alpha.1":       "beta",
+		"1.6.2-ea11+build.12": "ea",
 	}
 
 	for version, channel := range trueInput {
 		res := matchChannel(semver.MustParse(version), channel)
-		assert.True(t, res)
+		assert.True(t, res, "match channel %s failed for version '%s'", channel, version)
 	}
 	for version, channel := range falseInput {
 		res := matchChannel(semver.MustParse(version), channel)
-		assert.False(t, res)
+		assert.False(t, res, "not match channel %s failed for version '%s'", channel, version)
+	}
+}
+
+// If PATCH has stable release — this version is available for all channels
+func Test_sortByChannels(t *testing.T) {
+	unsorted := []string{
+		"1.1.2",
+		"1.1.2-beta.2",
+		"1.1.2-beta.1",
+		"1.1.2-rc.1",
+		"1.1.2-alpha.1",
+		"1.1.2-abcd.123",
+		"1.1.2-ea.2",
+		"1.1.2-rtm.12",
+		"1.1.2-alpha.2",
+		"1.1.2-ea",
+	}
+	sorted := []string{
+		"1.1.2-abcd.123",
+		"1.1.2-rtm.12",
+		"1.1.2-alpha.1",
+		"1.1.2-alpha.2",
+		"1.1.2-beta.1",
+		"1.1.2-beta.2",
+		"1.1.2-rc.1",
+		"1.1.2-ea",
+		"1.1.2-ea.2",
+		"1.1.2",
+	}
+	versions, err := filterByMajorMinor(unsorted, "1.1")
+	assert.Nil(t, err)
+
+	sort.Sort(SemverWithChannels(versions))
+
+	for i, elem := range sorted {
+		assert.Equal(t, elem, versions[i].Original(), "%d element %v not matched to desired %v", i, versions[i].Original(), elem)
 	}
 }
 
@@ -156,6 +196,7 @@ func Test_determineChannels(t *testing.T) {
 	assert.Equal(t, "1.1.2", res["alpha"].String())
 	assert.Equal(t, "1.1.2", res["beta"].String())
 	assert.Equal(t, "1.1.2", res["rc"].String())
+	assert.Equal(t, "1.1.2", res["ea"].String())
 	assert.Equal(t, "1.1.2", res["stable"].String())
 }
 
@@ -176,10 +217,11 @@ func Test_determineChannels_noStable(t *testing.T) {
 	assert.Equal(t, "1.1.2-beta.2", res["alpha"].String())
 	assert.Equal(t, "1.1.2-beta.2", res["beta"].String())
 	assert.Nil(t, res["rc"])
+	assert.Nil(t, res["ea"])
 	assert.Nil(t, res["stable"])
 }
 
-// If PATCH has rc release — this version is not available for stable
+// If PATCH has rc release — this version is not available for stable and ea
 // but available for alpha, beta, rc
 func Test_determineChannels_hasRc(t *testing.T) {
 	input := []string{
@@ -198,6 +240,30 @@ func Test_determineChannels_hasRc(t *testing.T) {
 	assert.Equal(t, "1.1.2-rc.0", res["alpha"].String())
 	assert.Equal(t, "1.1.2-rc.0", res["beta"].String())
 	assert.Equal(t, "1.1.2-rc.0", res["rc"].String())
+	assert.Nil(t, res["ea"])
+	assert.Nil(t, res["stable"])
+}
+
+// If PATCH has ea release — this version is not available for stable
+// but available for alpha, beta, rc, ea
+func Test_determineChannels_hasEa(t *testing.T) {
+	input := []string{
+		"1.1.2-beta.2",
+		"1.1.2-beta.1",
+		"1.1.2-alpha.1+1q121",
+		"1.1.2-rc",
+		"1.1.2-ea.0",
+	}
+	versions, err := filterByMajorMinor(input, "1.1")
+	assert.Nil(t, err)
+
+	res := determineChannels(versions, AvailableChannels)
+
+	assert.Equal(t, 4, len(res))
+	assert.Equal(t, "1.1.2-ea.0", res["alpha"].String())
+	assert.Equal(t, "1.1.2-ea.0", res["beta"].String())
+	assert.Equal(t, "1.1.2-ea.0", res["rc"].String())
+	assert.Equal(t, "1.1.2-ea.0", res["ea"].String())
 	assert.Nil(t, res["stable"])
 }
 

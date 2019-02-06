@@ -10,6 +10,7 @@ var AvailableChannels = []string{
 	"alpha",
 	"beta",
 	"rc",
+	"ea",
 	"stable",
 }
 
