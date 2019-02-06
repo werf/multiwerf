@@ -41,7 +41,7 @@ func Use(version string, channel string, args []string) (err error) {
 			messages <- ActionMessage{err: err}
 		}
 
-		MultiwerfStorageDir, err = ExpandAndVerifyDirectoryPath(app.StorageDir)
+		MultiwerfStorageDir, err = ExpandPath(app.StorageDir)
 		if err != nil {
 			messages <- ActionMessage{err: err}
 		}
@@ -89,7 +89,7 @@ func Update(version string, channel string, args []string) (err error) {
 			messages <- ActionMessage{err: err}
 		}
 
-		MultiwerfStorageDir, err = ExpandAndVerifyDirectoryPath(app.StorageDir)
+		MultiwerfStorageDir, err = ExpandPath(app.StorageDir)
 		if err != nil {
 			messages <- ActionMessage{err: err}
 		}

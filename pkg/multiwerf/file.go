@@ -198,8 +198,8 @@ func VerifyReleaseFileHashFromHashes(dir string, hashes map[string]string, targe
 	return true, nil
 }
 
-// ExpandAndVerifyDirectoryPath expands tilde prefix and returns an absolute path
-func ExpandAndVerifyDirectoryPath(path string) (resPath string, err error) {
+// ExpandPath expands tilde prefix and returns an absolute path
+func ExpandPath(path string) (resPath string, err error) {
 	expPath, err := TildeExpand(path)
 	if err != nil {
 		return
