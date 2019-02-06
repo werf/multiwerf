@@ -14,6 +14,7 @@ import (
 
 const fileChunkSize = int64(1024 * 1024) // 1Mb blocks
 
+// CalculateSHA256 returns SHA256 hash of filePath content
 func CalculateSHA256(filePath string) (string, error) {
 	file, err := os.Open(filePath)
 
@@ -74,6 +75,7 @@ func ReleaseFiles(pkg string, version string, osArch string) map[string]string {
 	return files
 }
 
+// LoadHashFile opens a file and returns hashes map
 func LoadHashFile(dir string, fileName string) (hashes map[string]string) {
 	filePath := filepath.Join(dir, fileName)
 	file, err := os.Open(filePath)
@@ -86,6 +88,7 @@ func LoadHashFile(dir string, fileName string) (hashes map[string]string) {
 	return LoadHashMap(file)
 }
 
+// LoadHashMap returns a map filename -> hash from reader
 func LoadHashMap(hashesReader io.Reader) (hashes map[string]string) {
 	hashes = map[string]string{}
 	scanner := bufio.NewScanner(hashesReader)
@@ -108,6 +111,7 @@ func LoadHashMap(hashesReader io.Reader) (hashes map[string]string) {
 	return
 }
 
+// FileExists returns true if file `name` is existing in `dir`
 func FileExists(dir string, name string) (bool, error) {
 	filePath := filepath.Join(dir, name)
 	info, err := os.Stat(filePath)
@@ -123,8 +127,9 @@ func FileExists(dir string, name string) (bool, error) {
 	return false, nil
 }
 
-func DirExists(dir string) (bool, error) {
-	info, err := os.Stat(dir)
+// DirExists returns true if path is an existing directory
+func DirExists(path string) (bool, error) {
+	info, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
@@ -137,6 +142,7 @@ func DirExists(dir string) (bool, error) {
 	return false, nil
 }
 
+// TildeExpand expands tilde prefix into HOME directory
 func TildeExpand(path string) (string, error) {
 	if len(path) == 0 || path[0] != '~' {
 		return path, nil
@@ -173,22 +179,17 @@ func VerifyReleaseFileHash(dir string, hashFile string, targetFile string) (bool
 	return VerifyReleaseFileHashFromHashes(dir, hashes, targetFile)
 }
 
+// VerifyReleaseFileHashFromHashes verifies targetFile hash with matched hash from hashes map
 func VerifyReleaseFileHashFromHashes(dir string, hashes map[string]string, targetFile string) (bool, error) {
-	//fmt.Printf("hashes: %+v", hashes)
-
 	hashForFile, hasHash := hashes[targetFile]
 	if !hasHash {
 		return false, nil
 	}
 
-	//fmt.Printf("hashForFile: %+v", hashForFile)
-
 	hash, err := CalculateSHA256(filepath.Join(dir, targetFile))
 	if err != nil {
 		return false, err
 	}
-
-	//fmt.Printf("hash calc: %+v", hash)
 
 	if hash != hashForFile {
 		return false, nil
@@ -197,8 +198,14 @@ func VerifyReleaseFileHashFromHashes(dir string, hashes map[string]string, targe
 	return true, nil
 }
 
+// ExpandAndVerifyDirectoryPath expands tilde prefix and returns an absolute path
 func ExpandAndVerifyDirectoryPath(path string) (resPath string, err error) {
-	resPath, err = TildeExpand(path)
+	expPath, err := TildeExpand(path)
+	if err != nil {
+		return
+	}
+
+	resPath, err = filepath.Abs(expPath)
 	if err != nil {
 		return
 	}
