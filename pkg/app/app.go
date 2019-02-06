@@ -49,12 +49,12 @@ func SetupGlobalSettings(kpApp *kingpin.Application) {
 		Default(StorageDir).
 		StringVar(&StorageDir)
 
-	kpApp.Flag("self-update", "set to no to disable self update in use command").
+	kpApp.Flag("self-update", "set to `no' to disable self update in use and update command").
 		Envar("MULTIWERF_SELF_UPDATE").
 		Default(SelfUpdate).
 		StringVar(&SelfUpdate)
 
-	kpApp.Flag("update", "set to no to disable update in use command").
+	kpApp.Flag("update", "set to `no' to disable werf update in use and update command").
 		Envar("MULTIWERF_UPDATE").
 		Default(Update).
 		StringVar(&Update)
