@@ -192,7 +192,7 @@ func Test_determineChannels(t *testing.T) {
 
 	res := determineChannels(versions, AvailableChannels)
 
-	assert.Equal(t, 4, len(res))
+	assert.Equal(t, 5, len(res))
 	assert.Equal(t, "1.1.2", res["alpha"].String())
 	assert.Equal(t, "1.1.2", res["beta"].String())
 	assert.Equal(t, "1.1.2", res["rc"].String())
