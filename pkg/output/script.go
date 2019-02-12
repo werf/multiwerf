@@ -64,6 +64,8 @@ func (s *Script) PrintBinaryAliasFunction(name, path string) error {
 %s "$@"
 }
 
+# Please, source me: source <(multiwerf ...)
+
 `, name, path)
 	return nil
 }

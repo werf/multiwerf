@@ -11,13 +11,15 @@ import (
 )
 
 func main() {
-	kpApp := kingpin.New(app.AppName, app.AppDescription)
+	kpApp := kingpin.New(app.AppName, fmt.Sprintf("%s %s: %s", app.AppName, app.Version, app.AppDescription))
 
 	// global defaults
 	app.SetupGlobalSettings(kpApp)
 
+	//kpApp.HelpFlag
+
 	// multiwerf version
-	kpApp.Command("version", "Show version").Action(func(c *kingpin.ParseContext) error {
+	kpApp.Command("version", "Show version.").Action(func(c *kingpin.ParseContext) error {
 		fmt.Printf("%s %s\n", app.AppName, app.Version)
 		return nil
 	})
@@ -27,7 +29,7 @@ func main() {
 
 	// multiwerf update
 	updateCmd := kpApp.
-		Command("update", "update binary to the latest PATCH version").
+		Command("update", "Update werf to the latest PATCH version available for channel.").
 		Action(func(c *kingpin.ParseContext) error {
 			// TODO add special error to exit with 1 and not print error message with kingpin
 			err := multiwerf.Update(versionStr, channelStr, []string{})
@@ -47,7 +49,7 @@ func main() {
 
 	// multiwerf use
 	useCmd := kpApp.
-		Command("use", "check for latest PATCH version and return a source script").
+		Command("use", "Check for latest PATCH version available for channel and return a source script with alias function.").
 		Action(func(c *kingpin.ParseContext) error {
 			// TODO add special error to exit with 1 and not print error message with kingpin
 			err := multiwerf.Use(versionStr, channelStr, []string{})

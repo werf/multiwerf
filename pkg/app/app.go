@@ -1,6 +1,10 @@
 package app
 
-import "gopkg.in/alecthomas/kingpin.v2"
+import (
+	"os"
+
+	"gopkg.in/alecthomas/kingpin.v2"
+)
 
 var AppName = "multiwerf"
 var AppDescription = "version manager and updater for werf.io project"
@@ -23,6 +27,72 @@ var DebugMessages = "no"
 
 // SetupGlobalSettings init global flags with default values
 func SetupGlobalSettings(kpApp *kingpin.Application) {
+	kpApp.Flag("bintray-subject", "subject part for bintray api").
+		Hidden().
+		Envar("MULTIWERF_BINTRAY_SUBJECT").
+		Default(BintraySubject).
+		StringVar(&BintraySubject)
+
+	kpApp.Flag("bintray-repo", "repository part for bintray api").
+		Hidden().
+		Envar("MULTIWERF_BINTRAY_REPO").
+		Default(BintrayRepo).
+		StringVar(&BintrayRepo)
+
+	kpApp.Flag("bintray-package", "package part for bintray api").
+		Hidden().
+		Envar("MULTIWERF_BINTRAY_PACKAGE").
+		Default(BintrayPackage).
+		StringVar(&BintrayPackage)
+
+	// Default for os-arch is set at compile time
+	kpApp.Flag("os-arch", "os and arch of binary (linux-amd64)").
+		Hidden().
+		Envar("MULTIWERF_OS_ARCH").
+		Default(OsArch).
+		StringVar(&OsArch)
+
+	kpApp.Flag("storage-dir", "directory for store binaries (~/.multiwerf)").
+		Hidden().
+		Envar("MULTIWERF_STORAGE_DIR").
+		Default(StorageDir).
+		StringVar(&StorageDir)
+
+	kpApp.Flag("self-update", "set to `no' to disable self update in use and update command").
+		Envar("MULTIWERF_SELF_UPDATE").
+		Default(SelfUpdate).
+		StringVar(&SelfUpdate)
+
+	kpApp.Flag("update", "set to `no' to disable werf update in use and update command").
+		Envar("MULTIWERF_UPDATE").
+		Default(Update).
+		StringVar(&Update)
+
+	kpApp.Flag("debug", "set to yes to turn on debug messages").
+		Envar("MULTIWERF_DEBUG").
+		Default(DebugMessages).
+		StringVar(&DebugMessages)
+		//Flag("help", "Show context-sensitive help (also try --help-long and --help-man).")
+
+	fakeApp := kingpin.New("advanced-help", "")
+	advCmd := fakeApp.Command("advanced-help", "").Hidden()
+	AddAdvFlags(advCmd)
+
+	//kpApp.GetHelpFlag = kpApp.Flag("help", "Show context-sensitive help. Also try --help-advanced.")
+	//kpApp.HelpFlag.Bool()
+
+	kpApp.Flag("help-advanced", "Show help for advanced flags.").PreAction(func(context *kingpin.ParseContext) error {
+		// create new app
+		// add command with flags
+		// usage
+		fakeApp.Usage([]string{"advanced-help"})
+		//fmt.Printf("Advanced usage here\n")
+		os.Exit(0)
+		return nil
+	}).Bool()
+}
+
+func AddAdvFlags(kpApp *kingpin.CmdClause) {
 	kpApp.Flag("bintray-subject", "subject part for bintray api").
 		Envar("MULTIWERF_BINTRAY_SUBJECT").
 		Default(BintraySubject).
@@ -48,19 +118,4 @@ func SetupGlobalSettings(kpApp *kingpin.Application) {
 		Envar("MULTIWERF_STORAGE_DIR").
 		Default(StorageDir).
 		StringVar(&StorageDir)
-
-	kpApp.Flag("self-update", "set to `no' to disable self update in use and update command").
-		Envar("MULTIWERF_SELF_UPDATE").
-		Default(SelfUpdate).
-		StringVar(&SelfUpdate)
-
-	kpApp.Flag("update", "set to `no' to disable werf update in use and update command").
-		Envar("MULTIWERF_UPDATE").
-		Default(Update).
-		StringVar(&Update)
-
-	kpApp.Flag("debug", "set to yes to turn on debug messages").
-		Envar("MULTIWERF_DEBUG").
-		Default(DebugMessages).
-		StringVar(&DebugMessages)
 }
