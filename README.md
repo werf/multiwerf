@@ -1,6 +1,7 @@
 [![CircleCI](https://circleci.com/gh/flant/multiwerf/tree/master.svg?style=svg)](https://circleci.com/gh/flant/multiwerf/tree/master)
-[![Download](https://api.bintray.com/packages/flant/multiwerf/multiwerf/images/download.svg)](https://bintray.com/flant/multiwerf/multiwerf/_latestVersion)
 [![Go Report Card](https://goreportcard.com/badge/github.com/flant/multiwerf)](https://goreportcard.com/report/github.com/flant/multiwerf)
+[![Download from Github](https://img.shields.io/github/tag-date/flant/multiwerf.svg?logo=github&label=latest)](https://github.com/flant/multiwerf/releases/latest)
+[![Download from Bintray mirror](https://api.bintray.com/packages/flant/multiwerf/multiwerf/images/download.svg)](https://bintray.com/flant/multiwerf/multiwerf/_latestVersion)
 
 # multiwerf
 Self-updatable version manager of [werf](https://github.com/flant/werf) binaries with awareness of release channels.
@@ -13,7 +14,7 @@ The simplest way is to get latest version of multiwerf to current directory with
 curl -L https://raw.githubusercontent.com/flant/multiwerf/master/get.sh | bash
 ```
 
-Also you can manually download a binary for your platform from [github releases](https://github.com/flant/multiwerf/releases) or from [bintray latest version](https://bintray.com/flant/multiwerf/multiwerf/_latestVersion).
+Also you can manually download a binary for your platform from [github releases](https://github.com/flant/multiwerf/releases) or from [bintray mirror](https://bintray.com/flant/multiwerf/multiwerf/_latestVersion).
 
 It is recommended to install multiwerf with enabled self updates as described in [Installation and update](#installation-and-update).
 
