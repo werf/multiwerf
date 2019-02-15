@@ -13,6 +13,7 @@ BINTRAY_PACKAGE=$BASE_NAME  # bintray package in repository
 #GITHUB_TOKEN=         # github API token
 GITHUB_OWNER=flant     # github user/org
 GITHUB_REPO=$BASE_NAME # github repository
+GITHUB_RELEASE_ID=
 
 RELEASE_BUILD_DIR=release/build
 
@@ -62,23 +63,42 @@ main() {
 
   echo "Publish version $VERSION from git tag $GIT_TAG"
   if [ -n "$BINTRAY_AUTH" ] ; then
-    ( bintray_create_version "$VERSION" && echo "Bintray: Version $VERSION created" ) || ( exit 1 )
+    ( bintray_create_version "$VERSION" && echo "  Bintray: Version $VERSION created" ) || ( exit 1 )
+  else
+    echo "  Bintray: cannot create a version without token"
+  fi
+  if [ -n "$GITHUB_TOKEN" ] ; then
+    github_create_release && echo "  Github: Release $VERSION for tag $GIT_TAG created" || ( exit 1 )
+    echo GITHUB_RELEASE_ID='"'"${GITHUB_RELEASE_ID}"'"'
+  else
+    echo "  Github: cannot create release without token"
+  fi
 
+  echo "Upload assets"
+  if [ -n "$BINTRAY_AUTH" ] ; then
+    echo "  Upload to bintray"
     (
      cd "$RELEASE_BUILD_DIR/$VERSION"
      for filename in "${BASE_NAME}"-* SHA256SUMS info.txt ; do
-       echo "Upload $filename"
+       echo "  - $filename"
        ( bintray_upload_file_into_version "$VERSION" "$filename" "$VERSION/$filename" ) || ( exit 1 )
      done
     )
   else
-    echo "Bintray: cannot upload without token"
+    echo "  Bintray: cannot upload without token"
   fi
 
   if [ -n "$GITHUB_TOKEN" ] ; then
-    ( github_create_release && echo "Github: Release for tag $GIT_TAG created" ) || ( exit 1 )
+    echo "  Upload to github"
+    (
+     cd "$RELEASE_BUILD_DIR/$VERSION"
+     for filename in "${BASE_NAME}"-* SHA256SUMS info.txt ; do
+       echo "  - $filename"
+       ( github_upload_asset_for_release "$filename") || ( exit 1 )
+     done
+    )
   else
-    echo "Github: cannot create release without token"
+    echo "  Github: cannot upload without token"
   fi
 }
 
@@ -153,7 +173,7 @@ bintray_upload_file_into_version() {
 }
 
 github_create_release() {
-  prerelease="true"
+  local prerelease="true"
   if [[ "$NO_PRERELEASE" == "yes" ]] ; then
     prerelease="false"
     echo "# Creating release $GIT_TAG"
@@ -161,7 +181,7 @@ github_create_release() {
     echo "# Creating pre-release $GIT_TAG"
   fi
 
-  GHPAYLOAD=$(cat <<- JSON
+  local GHPAYLOAD=$(cat <<- JSON
 {
   "tag_name": "$GIT_TAG",
   "name": "Multiwerf $VERSION",
@@ -172,8 +192,8 @@ github_create_release() {
 JSON
 )
 
-  curlResponse=$(mktemp)
-  status=$(curl -s -w '%{http_code}' -o "$curlResponse" \
+  local curlResponse=$(mktemp)
+  local status=$(curl -s -w '%{http_code}' -o "$curlResponse" \
       --request POST \
       --header "Authorization: token $GITHUB_TOKEN" \
       --header "Accept: application/vnd.github.v3+json" \
@@ -182,6 +202,37 @@ JSON
   )
 
   echo "Github create release: curl return status $status with response"
+  cat "$curlResponse"
+  echo
+
+  local ret=0
+  if [ "x$(echo "$status" | cut -c1)" != "x2" ]
+  then
+    ret=1
+  else
+    GITHUB_RELEASE_ID=$(cat "$curlResponse" | jq '.id')
+  fi
+
+  rm "$curlResponse"
+
+  return $ret
+}
+
+# upload file to a package $BINTRAY_PACKAGE version $VERSION
+github_upload_asset_for_release() {
+  local FILENAME=$1
+
+  curlResponse=$(mktemp)
+  status=$(curl -s -w '%{http_code}' -L -o "$curlResponse" \
+      --header "Authorization: token $GITHUB_TOKEN" \
+      --header "Accept: application/vnd.github.v3+json" \
+      --header "Content-type: application/binary" \
+      --request POST \
+      --upload-file "$FILENAME" \
+      "https://uploads.github.com/repos/$GITHUB_OWNER/$GITHUB_REPO/releases/$GITHUB_RELEASE_ID/assets?name=$FILENAME"
+  )
+
+  echo "Github upload $FILENAME: curl return status $status with response"
   cat "$curlResponse"
   echo
   rm "$curlResponse"
@@ -194,6 +245,7 @@ JSON
 
   return $ret
 }
+
 
 check_git() {
   type git > /dev/null 2>&1 || return 1
