@@ -72,50 +72,44 @@ func SetupGlobalSettings(kpApp *kingpin.Application) {
 		Envar("MULTIWERF_DEBUG").
 		Default(DebugMessages).
 		StringVar(&DebugMessages)
-		//Flag("help", "Show context-sensitive help (also try --help-long and --help-man).")
 
-	fakeApp := kingpin.New("advanced-help", "")
-	advCmd := fakeApp.Command("advanced-help", "").Hidden()
-	AddAdvFlags(advCmd)
-
-	//kpApp.GetHelpFlag = kpApp.Flag("help", "Show context-sensitive help. Also try --help-advanced.")
-	//kpApp.HelpFlag.Bool()
-
+	// Render help for hidden flags
 	kpApp.Flag("help-advanced", "Show help for advanced flags.").PreAction(func(context *kingpin.ParseContext) error {
-		// create new app
-		// add command with flags
-		// usage
-		fakeApp.Usage([]string{"advanced-help"})
-		//fmt.Printf("Advanced usage here\n")
+		context, err := kpApp.ParseContext(os.Args[1:])
+		if err != nil {
+			return err
+		}
+
+		usageTemplate := `
+{{define "FormatCommand"}}\
+{{if .FlagSummary}} {{.FlagSummary}}{{end}}\
+{{range .Args}} {{if not .Required}}[{{end}}<{{.Name}}>{{if .Value|IsCumulative}}...{{end}}{{if not .Required}}]{{end}}{{end}}\
+{{end}}\
+
+{{define "FormatUsage"}}\
+{{template "FormatCommand" .}}{{if .Commands}} <command> [<args> ...]{{end}}
+{{if .Help}}
+{{.Help|Wrap 0}}\
+{{end}}\
+
+{{end}}\
+
+usage: {{.App.Name}}{{template "FormatUsage" .App}}
+
+Advanced flags:
+{{range .Context.Flags}}\
+{{if .Hidden}}\
+{{if .Short}}-{{.Short|Char}}, {{end}}--{{.Name}}{{if not .IsBoolFlag}}={{.FormatPlaceHolder}}{{end}}
+        {{.Help}}
+{{end}}\
+{{end}}\
+`
+
+		if err := kpApp.UsageForContextWithTemplate(context, 2, usageTemplate); err != nil {
+			panic(err)
+		}
+
 		os.Exit(0)
 		return nil
 	}).Bool()
-}
-
-func AddAdvFlags(kpApp *kingpin.CmdClause) {
-	kpApp.Flag("bintray-subject", "subject part for bintray api").
-		Envar("MULTIWERF_BINTRAY_SUBJECT").
-		Default(BintraySubject).
-		StringVar(&BintraySubject)
-
-	kpApp.Flag("bintray-repo", "repository part for bintray api").
-		Envar("MULTIWERF_BINTRAY_REPO").
-		Default(BintrayRepo).
-		StringVar(&BintrayRepo)
-
-	kpApp.Flag("bintray-package", "package part for bintray api").
-		Envar("MULTIWERF_BINTRAY_PACKAGE").
-		Default(BintrayPackage).
-		StringVar(&BintrayPackage)
-
-	// Default for os-arch is set at compile time
-	kpApp.Flag("os-arch", "os and arch of binary (linux-amd64)").
-		Envar("MULTIWERF_OS_ARCH").
-		Default(OsArch).
-		StringVar(&OsArch)
-
-	kpApp.Flag("storage-dir", "directory for store binaries (~/.multiwerf)").
-		Envar("MULTIWERF_STORAGE_DIR").
-		Default(StorageDir).
-		StringVar(&StorageDir)
 }
