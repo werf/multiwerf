@@ -1,8 +1,10 @@
-## Changelog
+Changelog
+---------
 
 $CHANGELOG_TEXT
 
-## Installation and usage
+Installation and usage
+----------------------
 
 Download from Github assets or from Bintray mirror or curl-bash-it:
 
@@ -20,7 +22,8 @@ v1.0.0-alpha.17
 
 Go to `werf` [documentation](https://flant.github.io/werf/).
 
-### Download from Bintray mirror
+Download from Bintray mirror
+----------------------------
 
 - [Linux amd64](https://dl.bintray.com/flant/multiwerf/$VERSION/multiwerf-linux-amd64-$VERSION)
 - [Darwin amd64](https://dl.bintray.com/flant/multiwerf/$VERSION/multiwerf-darwin-amd64-$VERSION)

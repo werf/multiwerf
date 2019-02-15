@@ -22,6 +22,6 @@ fi
 echo "CHANGELOG_TEXT = ${CHANGELOG_TEXT}"
 echo "envsubst"
 
-envsubst < ${TAG_TEMPLATE} | git tag --annotate --file - --edit $VERSION
+VERSION="${VERSION}" CHANGELOG_TEXT="${CHANGELOG_TEXT}" envsubst < ${TAG_TEMPLATE} | git tag --annotate --file - --edit $VERSION
 
 git push --tags
