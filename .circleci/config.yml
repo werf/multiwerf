@@ -4,7 +4,7 @@ version: 2.1
 executors:
   golang:
     docker:
-    - image: circleci/golang:1.11
+    - image: circleci/golang:1.10
 
 jobs:
   test:
@@ -16,16 +16,6 @@ jobs:
       # specify any bash command here prefixed with `run: `
       - run: go get -v -t -d ./...
       - run: go test -v ./...
-
-#  build_release:
-#    executor: golang
-#
-#    working_directory: /go/src/github.com/flant/multiwerf
-#    steps:
-#    - checkout
-#    - attach_workspace:
-#        at: .
-#    - run: ./release/build.sh $CIRCLE_SHA1
 
   build_release_on_tag:
     executor: golang
@@ -41,19 +31,14 @@ workflows:
   version: 2
   multiwerf:
     jobs:
+    # run tests on every commit
     - test:
         filters:  # required since `build_release_on_tag` has tag filters AND requires `test`
           tags:
             only: /.*/
           branches:
             only: /.*/
-# TODO it looks like nightly builds — not needed for now
-#    - build_master:
-#        requires:
-#        - test
-#        filters:
-#          branches:
-#            only: master
+    # test, build and publish release on every semver tag
     - build_release_on_tag:
         requires:
         - test
