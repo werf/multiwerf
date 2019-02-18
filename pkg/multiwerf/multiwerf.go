@@ -2,6 +2,8 @@ package multiwerf
 
 import (
 	"fmt"
+	"path/filepath"
+
 	"github.com/flant/multiwerf/pkg/app"
 	"github.com/flant/multiwerf/pkg/output"
 )
@@ -53,6 +55,33 @@ func Use(version string, channel string, args []string) (err error) {
 		return err
 	}
 
+	// Check for delay of self update
+	selfUpdateDelay := UpdateDelay{
+		Filename: filepath.Join(MultiwerfStorageDir, ".self-update.delay"),
+	}
+	selfUpdateDelay.SetDelay(app.SelfUpdateDelay)
+	// if self update is enabled, check for delay and disable self update if needed
+	if app.SelfUpdate == "yes" {
+		if selfUpdateDelay.IsDelayPassed() {
+			selfUpdateDelay.UpdateTimestamp()
+		} else {
+			app.SelfUpdate = "no"
+		}
+	}
+
+	// Check for delay of werf update
+	updateDelay := UpdateDelay{
+		Filename: filepath.Join(MultiwerfStorageDir, fmt.Sprintf(".update-%s-%s.delay", version, channel)),
+	}
+	updateDelay.SetDelay(app.UpdateDelay)
+	if app.Update == "yes" {
+		if updateDelay.IsDelayPassed() {
+			updateDelay.UpdateTimestamp()
+		} else {
+			app.Update = "no"
+		}
+	}
+
 	// update multiwerf binary (self update)
 	go func() {
 		SelfUpdate(messages)
@@ -102,6 +131,20 @@ func Update(version string, channel string, args []string) (err error) {
 		return err
 	}
 
+	// Check for delay of self update
+	selfUpdateDelay := UpdateDelay{
+		Filename: filepath.Join(MultiwerfStorageDir, ".self-update.delay"),
+	}
+	selfUpdateDelay.SetDelay(app.SelfUpdateDelay)
+	// if self update is enabled, check for delay and disable self update if needed
+	if app.SelfUpdate == "yes" {
+		if selfUpdateDelay.IsDelayPassed() {
+			selfUpdateDelay.UpdateTimestamp()
+		} else {
+			app.SelfUpdate = "no"
+		}
+	}
+
 	// update multiwerf binary (self update)
 	go func() {
 		messages <- ActionMessage{msg: "Start SelfUpdate", debug: true}
@@ -117,6 +160,13 @@ func Update(version string, channel string, args []string) (err error) {
 	if err != nil {
 		return err
 	}
+
+	// Update timestamp of delay of werf update
+	updateDelay := UpdateDelay{
+		Filename: filepath.Join(MultiwerfStorageDir, fmt.Sprintf(".update-%s-%s.delay", version, channel)),
+	}
+	updateDelay.UpdateTimestamp()
+
 	return nil
 }
 
