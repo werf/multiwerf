@@ -6,7 +6,18 @@
 # multiwerf
 Self-updatable version manager of [werf](https://github.com/flant/werf) binaries with awareness of release channels.
 
-## Quick install
+### Contents
+
+- [Quick start](#quick-start)
+- [Commands](#commands)
+- [Werf versioning](#werf-versioning)
+- [Installation and self-update](#installation-and-self-update)
+- [License](#license)
+
+
+## Quick start
+ 
+### Install
 
 The simplest way is to get latest version of multiwerf to current directory with get.sh script:
 
@@ -18,25 +29,29 @@ Also you can manually download a binary for your platform from [github releases]
 
 It is recommended to install multiwerf with enabled self updates as described in [Installation and update](#installation-and-update).
 
-## Usage
+### Usage
 
 General usage of `multiwerf` is to download a werf binary and setup a `werf` function for the shell.
 
 ```
-source <(multiwerf use 1.0 alpha)
+$ source <(multiwerf use 1.0 alpha)
+Detect version v1.0.0-alpha.17 as latest for channel 1.0/alpha
+werf 1.0/alpha updated to v1.0.0-alpha.17
+$ werf version
+v1.0.0-alpha.17
 ```
 
 This command will download the latest version of `werf` from `1.0/alpha` channel into ~/.multiwerf/<version> directory and setup a shell function to run this version.
 
+More on compatibility of werf channels in [werf README](https://github.com/flant/werf#backward-compatibility-promise).
+
 
 ## Commands
 
-- `multiwerf use MAJOR.MINOR CHANNEL` — check for latest version of multiwerf, self update in background if needed, check for latest version in MAJOR.MINOR series and return a script for use with `source`
-- `multiwerf update MAJOR.MINOR CHANNEL` — update binary to the latest version in MAJOR.MINOR series
+- `multiwerf use MAJOR.MINOR CHANNEL` — check for latest version in channel in MAJOR.MINOR branch and return a script for use with `source`
+- `multiwerf update MAJOR.MINOR CHANNEL` — update binary to the latest version of channel in MAJOR.MINOR branch
 
-First positional argument is in form of MAJOR.MINOR. More on this in [Versioning](#versioning).
-
-CHANNEL is one of: alpha, beta, rc, ea, stable
+First positional argument is in form of MAJOR.MINOR. CHANNEL is one of: alpha, beta, rc, ea, stable. More on this in [werf versioning](#werf-versioning).
 
 Binaries are downloaded to a directory `$HOME/.multiwerf/VERSION/`. For example, version `1.0.1-alpha.3` of `werf` binaries for user `gitlab-runner` will be stored as
 
@@ -52,43 +67,41 @@ Binaries are downloaded to a directory `$HOME/.multiwerf/VERSION/`. For example,
 
 `use` command also have `--update=no` flag to prevent version checking and use only locally available versions from ~/.multiwerf.
 
-## Versioning
+`use` and `update` commands are check for latest version of multiwerf and self update a multiwerf binary if needed. This can be disabled with `--self-update=no` flag. 
 
-Binary releases should follow a [semver](https://semver.org/) versioning, so version has this form:
 
-```
-MAJOR.MINOR.PATCH-PRERELEASE+METADATA
-```
+## Werf versioning
 
-`multiwerf` makes this assumptions:
+Werf binary releases are follow a [Semantic Versioning](https://semver.org/) and [Backward Compatibility Promise](https://github.com/flant/werf#backward-compatibility-promise), so `multiwerf` makes this assumptions:
 
-- PRERELEASE determines a CHANNEL
+- each werf release version has a form of `MAJOR.MINOR.PATCH-PRERELEASE+METADATA`
 - PATCH can be increased directly (1.0.1 → 1.0.2)
 - PATCH can be increased with prereleases (1.0.1 → 1.0.2-alpha → 1.0.2-alpha.1 → 1.0.2-rc.1 → 1.0.2)
+- prefix of a PRERELEASE determines a CHANNEL
 - version without PRERELEASE part is a version for `stable` channel
-- version with PRERELEASE part should be a version for `alpha`, `beta` or `rc` channels
+- version with PRERELEASE part should be a version for `alpha`, `beta`, `rc` or `ea` channels
+- versions from unknown channels are ignored
 - METADATA parts are not sorted (by semver spec)
 
-## Channels
+### Channels
 
-### stable
+#### stable
 
 `stable` can be ommited: `multiwerf use 1.1 stable` or `multiwerf use 1.1` is equivalent commands.
 
 `multiwerf` will check for the latest PATCH for passed MAJOR.MINOR.
 
-### alpha, beta, rc
+#### alpha, beta, rc, ea
 
-`multiwerf use 1.0 alpha`, `multiwerf use 1.1 rc`
+`multiwerf use 1.0 alpha`, `multiwerf update 1.1 rc`
 
-`multiwerf` will check for the latest prerelease version. If there is version with equal or more stable prerelease then it will be used.
-If the latest version is stable then binary will be updated to stable.
+`multiwerf` will check for the latest version from requested channel. If there is version from equal or more stable channel then this version will be used.
+If requested channel is `beta`, but `ea` is available, then binary will be updated from `ea`.
 
 For example, let assume that repository contains these versions:
 
 ```
 2.0.2
-2.0.12+build.2018.11
 2.0.12+build.2018.12
 2.1.0
 2.1.1-alpha.1
@@ -103,46 +116,29 @@ For example, let assume that repository contains these versions:
 ```
 multiwerf use 2.1
 ```
-This command will download and run version `2.1.2` — the latest available stable for MAJOR=2, MINOR=1
+This command will download and run version `2.1.2` — the latest available patch release from `stable` channel for 2.1 minor branch
 
 ```
 multiwerf use 2.1 alpha
 multiwerf use 2.1 rc
 ```
-These commands will ignore 2.1.1-alpha and 2.1.1-rc prereleases and download version `2.1.2` because the latest version for 2.1 is 2.1.2.
+These commands will ignore 2.1.1-alpha and 2.1.1-rc patch releases and download more stable version `2.1.2`.
 
 ```
 multiwerf use 3.0 alpha
 ```
-
 This command will download `3.0.1-beta.2` because there is availabe release in more stable channel: beta.
 
 ```
 multiwerf use 3.0 rc
 ```
-This command will download `3.0.0` because the latest PATCH 3.0.1 have no versions with rc prerelease.
+This command will download `3.0.0` because the latest patch release 3.0.1 have no versions from rc channel.
 
 ```
 multiwerf use 2.0
 ```
-This command will download `2.0.12+build.2018.12` because equal MAJOR.MINOR.PATCH are are sorted by metadata.
+This command will download `2.0.12+build.2018.12` because metadata is ignored.
 
-## Download settings
-
-`multiwerf` depends on some external information:
-
-- version list
-- an url of repository
-- a directories structure of the repository
-
-The first version of `multiwerf` hardcode this information at complile time and support only bintray API and download url.
-
-## Some thoughts on release cycle
-
-- `stable` channel is used for most critical environments with tight SLA
-- `rc` for environments with normal SLA
-- `beta` for environments where downtime is acceptable, i.e., dev, test, some kind of stages
-- `alpha` for bleeding edge environments to give a try for fixes and new features
 
 ## Installation and self-update
 
@@ -169,10 +165,15 @@ type multiwerf >/dev/null && source <(multiwerf use 1.0 alpha)
 
 This command will print a message to stderr in case if multiwerf is not found, so diagnostic in CI environment should be simple. 
 
-## Offline tips
+### Offline tips
 
 `multiwerf` can be used in offline scenarios.
 
 1. set MULTIWERF_UPDATE=no and MULTIWERF_SELF_UPDATE=no environment variables to prevent http requests or use `--self-update=no --update=no` flags
 2. put desired binary file and SHA256SUMS file into `~/.multiwerf/<version> directory`
 3. `source <(multiwerf use ...)` will not make any online request and consider locally available version as latest
+
+
+## License
+
+Apache License 2.0, see [LICENSE](LICENSE).
