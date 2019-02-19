@@ -2,6 +2,7 @@ package app
 
 import (
 	"os"
+	"time"
 
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -24,6 +25,12 @@ var StorageDir = "~/.multiwerf"
 var SelfUpdate = "yes"
 var Update = "yes"
 var DebugMessages = "no"
+
+// An hour delay between checks for latest version of werf
+var UpdateDelay = time.Duration(time.Hour)
+
+// 24 hour delay between check for latest version of multiwerf
+var SelfUpdateDelay = time.Duration(24 * time.Hour)
 
 // SetupGlobalSettings init global flags with default values
 func SetupGlobalSettings(kpApp *kingpin.Application) {
