@@ -65,6 +65,31 @@ func ChooseLatestVersion(version string, channel string, availableVersions []str
 	return "", nil
 }
 
+func PickLatestVersions(version string, versions []string, top int) []string {
+	res := make([]string, 0)
+	if len(versions) == 0 {
+		return res
+	}
+
+	mmVersions, err := filterByMajorMinor(versions, version)
+	if err != nil {
+		return res
+	}
+
+	sort.Sort(SemverWithChannels(mmVersions))
+
+	start := 0
+	if len(mmVersions) > top {
+		start = len(mmVersions) - top
+	}
+	// output is reversed: from latest to earliest
+	for i := len(mmVersions) - 1; i >= start; i-- {
+		res = append(res, mmVersions[i].Original())
+	}
+
+	return res
+}
+
 // filterByMajorMinor construct array from availableVersions where each item has MAJOR.MINOR as in a version argument
 func filterByMajorMinor(availableVersions []string, version string) ([]*semver.Version, error) {
 	v, err := semver.NewVersion(version)

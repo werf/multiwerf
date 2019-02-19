@@ -280,3 +280,51 @@ func Test_chooseLatestSimple(t *testing.T) {
 
 	assert.Equal(t, "0.0.1+test.ci.4", version)
 }
+
+func Test_PickLatestVersions_top5(t *testing.T) {
+	input := []string{
+		"1.1.2-beta.2",
+		"1.1.2-beta.1",
+		"1.1.2-alpha.1",
+		"1.1.0-alpha.1",
+		"1.1.1-alpha.1",
+		"1.1.0",
+		"1.1.0-rc.1",
+		"1.1.1-rc.3",
+		"1.1.1-ea.4",
+		"1.1.1-rc.1",
+		"1.1.0-ea.1",
+	}
+
+	res := PickLatestVersions("1.1", input, 5)
+
+	assert.Equal(t, 5, len(res))
+	assert.Equal(t, "1.1.1-rc.3", res[4])
+	assert.Equal(t, "1.1.1-ea.4", res[3])
+	assert.Equal(t, "1.1.2-alpha.1", res[2])
+	assert.Equal(t, "1.1.2-beta.1", res[1])
+	assert.Equal(t, "1.1.2-beta.2", res[0])
+
+}
+
+func Test_PickLatestVersions_top5_small_input(t *testing.T) {
+	input := []string{
+		"1.1.2-beta.2",
+		"1.1.2-beta.1",
+	}
+
+	res := PickLatestVersions("1.1", input, 5)
+
+	assert.Equal(t, 2, len(res))
+	assert.Equal(t, "1.1.2-beta.1", res[1])
+	assert.Equal(t, "1.1.2-beta.2", res[0])
+
+}
+
+func Test_PickLatestVersions_top5_empty_input(t *testing.T) {
+	input := []string{}
+
+	res := PickLatestVersions("1.1", input, 5)
+
+	assert.Equal(t, 0, len(res))
+}

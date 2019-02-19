@@ -12,11 +12,16 @@ func NewScriptPrint() *ScriptPrint {
 }
 
 func (s *ScriptPrint) Cprintf(color string, format string, args ...interface{}) (n int, err error) {
-	if color == "" || color == "none" {
-		return fmt.Printf("echo '%s'\n", fmt.Sprintf(format, args...))
+	msg := fmt.Sprintf(format, args...)
+	if msg == "" {
+		return
 	}
 
-	return fmt.Printf("echo -e %s'%s'%s\n", ColorCodes[color]["quoted"], fmt.Sprintf(format, args...), ColorCodes["stop"]["quoted"])
+	if color == "" || color == "none" {
+		return fmt.Printf("echo '%s'\n", msg)
+	}
+
+	return fmt.Printf("echo -e %s'%s'%s\n", ColorCodes[color]["quoted"], msg, ColorCodes["stop"]["quoted"])
 }
 
 func (s *ScriptPrint) CommentPrintf(format string, args ...interface{}) (n int, err error) {
@@ -38,7 +43,9 @@ func (s *ScriptPrint) DebugMessage(msg string, comment string) {
 }
 
 func (s *ScriptPrint) Error(err error) {
-	s.Cprintf("red", "%v\n", err)
+	if err.Error() != "" {
+		s.Cprintf("red", "%v\n", err)
+	}
 	fmt.Println("return 1")
 	return
 }
@@ -61,7 +68,8 @@ func (s *Script) PrintBinaryAliasFunction(name, path string) error {
 # To remove function use unset:
 # unset -f %[1]s
 %[1]s() {
-%s "$@"
+if [[ $1 == "--path" ]] ; then echo '%[2]s' ; return ; fi
+%[2]s "$@"
 }
 
 # Please, source me: source <(multiwerf ...)

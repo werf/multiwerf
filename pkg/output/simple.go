@@ -20,7 +20,9 @@ func (p *SimplePrint) Cprintf(color string, format string, args ...interface{}) 
 }
 
 func (p *SimplePrint) Error(err error) {
-	p.Cprintf("red", "%v\n", err)
+	if err.Error() != "" {
+		p.Cprintf("red", "%v\n", err)
+	}
 }
 
 func (p *SimplePrint) DebugMessage(message, comment string) {
@@ -28,5 +30,7 @@ func (p *SimplePrint) DebugMessage(message, comment string) {
 }
 
 func (p *SimplePrint) Message(message, color, comment string) {
-	p.Cprintf(color, "%s\n", message)
+	if message != "" {
+		p.Cprintf(color, "%s\n", message)
+	}
 }
