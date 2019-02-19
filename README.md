@@ -157,6 +157,18 @@ There are 2 recommended ways to install multiwerf:
 1. Put multiwerf into $HOME/bin directory. This is a best scenario for gitlab-runner setup or for local development. In this case multiwerf will check for new version no more than every day and new versions of werf will be checked no more than every hour.
 2. Put multiwerf into /usr/local/bin directory and set root as owner. This setup requires to define a cronjob for user root with command `multiwerf update 1.0`. In this case users cannot update multiwerf but self-update is working.
 
+### Running multiwerf in CI
+
+If multiwerf is used in shell scenarios without possibility to enter custom commands after execution, for example, in CI environments,
+then `source` with `Process Substitution` can lead to errors. The recommendation is to use `type` to ensure that multiwerf
+is exists and is executable:
+
+```
+type multiwerf >/dev/null && source <(multiwerf use 1.0 alpha)
+```
+
+This command will print a message to stderr in case if multiwerf is not found, so diagnostic in CI environment should be simple. 
+
 ## Offline tips
 
 `multiwerf` can be used in offline scenarios.
