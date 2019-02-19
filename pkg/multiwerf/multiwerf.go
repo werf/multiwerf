@@ -177,7 +177,7 @@ func PrintMessages(messages chan ActionMessage, printer output.Printer) error {
 		case msg := <-messages:
 			if msg.err != nil {
 				printer.Error(msg.err)
-				// TODO prevent this error print with kingpin default handler
+				// TODO add special error to exit with 1 and not print error message with kingpin
 				return msg.err
 			}
 

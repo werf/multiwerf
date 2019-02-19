@@ -14,9 +14,10 @@ import (
 )
 
 type BinaryInfo struct {
-	BinaryPath   string
-	Version      string
-	HashVerified bool
+	BinaryPath        string
+	Version           string
+	HashVerified      bool
+	AvailableVersions []string
 }
 
 type BinaryUpdater interface {
@@ -53,11 +54,13 @@ func NewBinaryUpdater(messages chan ActionMessage) BinaryUpdater {
 func (u *MainBinaryUpdater) DownloadLatest(version string, channel string) (binInfo BinaryInfo) {
 	u.Messages <- ActionMessage{msg: "Start DownloadLatest", debug: true}
 
-	latestVersion, err := RemoteLatestVersion(version, channel, u.Messages, u.BintrayClient)
+	remoteBinInfo, err := RemoteLatestBinaryInfo(version, channel, u.Messages, u.BintrayClient)
 	if err != nil {
 		u.Messages <- ActionMessage{err: err, action: "exit"}
 		return
 	}
+
+	latestVersion := remoteBinInfo.Version
 
 	u.Messages <- ActionMessage{
 		msg:     fmt.Sprintf("detect version '%s' as latest for channel %s/%s", latestVersion, version, channel),
@@ -109,15 +112,17 @@ func (u *MainBinaryUpdater) DownloadLatest(version string, channel string) (binI
 // Checks for local versions and remote versions. If no remote version is available — use
 // local version.
 func (u *MainBinaryUpdater) GetLatestBinaryInfo(version string, channel string) (binInfo BinaryInfo) {
+	remoteBinInfo := BinaryInfo{}
 	remoteLatestVersion := ""
 	if app.Update == "yes" {
 		var err error
-		remoteLatestVersion, err = RemoteLatestVersion(version, channel, u.Messages, u.BintrayClient)
+		remoteBinInfo, err = RemoteLatestBinaryInfo(version, channel, u.Messages, u.BintrayClient)
 		if err != nil {
 			u.Messages <- ActionMessage{
 				msg:     err.Error(),
 				msgType: "warn"}
 		}
+		remoteLatestVersion = remoteBinInfo.Version
 	}
 
 	localBinaryInfo, err := LocalLatestBinaryInfo(version, channel, u.Messages)
@@ -132,7 +137,39 @@ func (u *MainBinaryUpdater) GetLatestBinaryInfo(version string, channel string) 
 	// no remote, no local — exit with error
 	if remoteLatestVersion == "" && localLatestVersion == "" {
 		u.Messages <- ActionMessage{
-			err: fmt.Errorf("Cannot determine latest version neither from bintray package '%s' nor from local storage %s", app.BintrayPackage, app.StorageDir),
+			msg:     fmt.Sprintf("Cannot determine latest version for %s/%s neither from bintray package '%s' nor from local storage %s", version, channel, app.BintrayPackage, app.StorageDir),
+			msgType: "fail",
+		}
+		// Show top 5 versions from remote or from local if remote is disabled
+		if len(remoteBinInfo.AvailableVersions) > 0 {
+			latestAvailable := PickLatestVersions(version, remoteBinInfo.AvailableVersions, 5)
+			if len(latestAvailable) > 0 {
+				msg := strings.Join(latestAvailable, "\n")
+				u.Messages <- ActionMessage{
+					msg:     fmt.Sprintf("Top %d latest versions for '%s' from bintray package:", len(latestAvailable), version),
+					msgType: "warn",
+				}
+				u.Messages <- ActionMessage{
+					msg:     msg,
+					msgType: "warn",
+				}
+			}
+		} else {
+			latestAvailable := PickLatestVersions(version, localBinaryInfo.AvailableVersions, 5)
+			if len(latestAvailable) > 0 {
+				msg := strings.Join(latestAvailable, "\n")
+				u.Messages <- ActionMessage{
+					msg:     fmt.Sprintf("Top %d latest versions for '%s' from local storage:", len(latestAvailable), version),
+					msgType: "warn",
+				}
+				u.Messages <- ActionMessage{
+					msg:     msg,
+					msgType: "warn",
+				}
+			}
+		}
+		u.Messages <- ActionMessage{
+			err: fmt.Errorf(""),
 		}
 		return
 	}
@@ -149,7 +186,7 @@ func (u *MainBinaryUpdater) GetLatestBinaryInfo(version string, channel string) 
 		}
 		if remoteLatestVersion == "" && !localBinaryInfo.HashVerified {
 			u.Messages <- ActionMessage{
-				err: fmt.Errorf("Cannot determine latest version from bintray package '%s' and local binary '%s' is corrupted", app.BintrayPackage, localLatestVersion),
+				err: fmt.Errorf("Cannot determine latest version from bintray package '%s' and local latest binary '%s' is corrupted", app.BintrayPackage, localLatestVersion),
 			}
 			return
 		}
@@ -249,6 +286,8 @@ func LocalLatestBinaryInfo(version string, channel string, messages chan ActionM
 		err = errors.New(strings.Join(errMsgs, "\n"))
 	}
 
+	binInfo.AvailableVersions = subDirs
+
 	latestVersion, err := ChooseLatestVersion(version, channel, subDirs, AvailableChannels)
 	if err != nil {
 		return
@@ -258,7 +297,14 @@ func LocalLatestBinaryInfo(version string, channel string, messages chan ActionM
 		return
 	}
 
-	return GetBinaryInfo(latestVersion, messages)
+	exactBinInfo, err := GetBinaryInfo(latestVersion, messages)
+	if err != nil {
+		return
+	}
+
+	exactBinInfo.AvailableVersions = subDirs
+
+	return exactBinInfo, nil
 }
 
 // GetBinaryInfo return BinaryInfo object for binary with exact version if it is
@@ -291,30 +337,38 @@ func GetBinaryInfo(version string, messages chan ActionMessage) (binInfo BinaryI
 	return
 }
 
-// RemoteLatestVersion searches for a latest available version in bintray
-func RemoteLatestVersion(version string, channel string, messages chan ActionMessage, btClient bintray.BintrayClient) (latestVersion string, err error) {
+// RemoteLatestBinaryInfo searches for a latest available version in bintray
+func RemoteLatestBinaryInfo(version string, channel string, messages chan ActionMessage, btClient bintray.BintrayClient) (binInfo BinaryInfo, err error) {
+	binInfo = BinaryInfo{}
+
 	pkgInfo, err := btClient.GetPackage()
 	if err != nil {
-		return "", fmt.Errorf("Get info for package '%s' error: %v", app.BintrayPackage, err)
+		err = fmt.Errorf("Get info for package '%s' error: %v", app.BintrayPackage, err)
+		return
 	}
 
 	versions := bintray.GetPackageVersions(pkgInfo)
 	if len(versions) == 0 {
-		return "", fmt.Errorf("No versions found in bintray for '%s'", app.BintrayPackage)
+		err = fmt.Errorf("No versions found in bintray for '%s'", app.BintrayPackage)
+		return
 	} else {
 		messages <- ActionMessage{
 			msg:   fmt.Sprintf("Discover %d versions for channel %s/%s of package %s", len(versions), version, channel, app.BintrayPackage),
 			debug: true}
 	}
 
+	binInfo.AvailableVersions = versions
+
 	// Calc a latest version for version/channel
-	latestVersion, err = ChooseLatestVersion(version, channel, versions, AvailableChannels)
+	latestVersion, err := ChooseLatestVersion(version, channel, versions, AvailableChannels)
 	if err != nil {
 		return
 	}
 	if latestVersion == "" {
-		return "", fmt.Errorf("No valid versions found for %s/%s channel of package %s/%s/%s", version, channel, app.BintraySubject, app.BintrayRepo, app.BintrayPackage)
+		err = fmt.Errorf("No valid versions found for %s/%s channel of package %s/%s/%s", version, channel, app.BintraySubject, app.BintrayRepo, app.BintrayPackage)
+		return
 	}
+	binInfo.Version = latestVersion
 	return
 }
 
