@@ -160,7 +160,7 @@ then `source` with `Process Substitution` can lead to errors. The recommendation
 is exists and is executable:
 
 ```
-type multiwerf >/dev/null && source <(multiwerf use 1.0 alpha)
+type multiwerf && source <(multiwerf use 1.0 alpha)
 ```
 
 This command will print a message to stderr in case if multiwerf is not found, so diagnostic in CI environment should be simple. 
