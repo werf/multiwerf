@@ -29,6 +29,9 @@ var DebugMessages = "no"
 // An hour delay between checks for latest version of werf
 var UpdateDelay = time.Duration(time.Hour)
 
+// A 5 minute delay for alpha and beta releases
+var AlphaBetaUpdateDelay = time.Duration(time.Minute * 5)
+
 // 24 hour delay between check for latest version of multiwerf
 var SelfUpdateDelay = time.Duration(24 * time.Hour)
 

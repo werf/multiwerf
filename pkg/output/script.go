@@ -2,6 +2,7 @@ package output
 
 import (
 	"fmt"
+	"regexp"
 )
 
 type ScriptPrint struct {
@@ -18,10 +19,10 @@ func (s *ScriptPrint) Cprintf(color string, format string, args ...interface{}) 
 	}
 
 	if color == "" || color == "none" {
-		return fmt.Printf("echo '%s'\n", msg)
+		return fmt.Printf("echo '%s'\n", EscapeSingleQuotes(msg))
 	}
 
-	return fmt.Printf("echo -e %s'%s'%s\n", ColorCodes[color]["quoted"], msg, ColorCodes["stop"]["quoted"])
+	return fmt.Printf("echo -e %s'%s'%s\n", ColorCodes[color]["quoted"], EscapeSingleQuotes(msg), ColorCodes["stop"]["quoted"])
 }
 
 func (s *ScriptPrint) CommentPrintf(format string, args ...interface{}) (n int, err error) {
@@ -76,4 +77,9 @@ if [[ $1 == "--path" ]] ; then echo '%[2]s' ; return ; fi
 
 `, name, path)
 	return nil
+}
+
+func EscapeSingleQuotes(s string) string {
+	re := regexp.MustCompile(`'`)
+	return re.ReplaceAllString(s, "'\"'\"'")
 }
