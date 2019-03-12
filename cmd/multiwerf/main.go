@@ -26,6 +26,7 @@ func main() {
 
 	var versionStr string
 	var channelStr string
+	var outputFormat string
 
 	// multiwerf update
 	updateCmd := kpApp.
@@ -42,7 +43,7 @@ func main() {
 		HintOptions("1.0", "1.1").
 		Required().
 		StringVar(&versionStr)
-	updateCmd.Arg("channel", "Channel is one of alpha|beta|rc|stable").
+	updateCmd.Arg("channel", "Channel is one of alpha|beta|rc|ea|stable").
 		HintOptions(multiwerf.AvailableChannels...).
 		Default("stable").
 		EnumVar(&channelStr, multiwerf.AvailableChannels...)
@@ -62,10 +63,32 @@ func main() {
 		HintOptions("1.0", "1.1").
 		Required().
 		StringVar(&versionStr)
-	useCmd.Arg("channel", "Channel is one of alpha|beta|rc|stable").
+	useCmd.Arg("channel", "Channel is one of alpha|beta|rc|ea|stable").
 		HintOptions(multiwerf.AvailableChannels...).
 		Default("stable").
 		EnumVar(&channelStr, multiwerf.AvailableChannels...)
+
+	// multiwerf available-releases
+	releasesCmd := kpApp.
+		Command("available-releases", "Show available major.minor versions or available versions for each channel or exact version for major.minor and channel.").
+		Action(func(c *kingpin.ParseContext) error {
+			// TODO add special error to exit with 1 and not print error message with kingpin
+			err := multiwerf.AvailableReleases(versionStr, channelStr, outputFormat)
+			if err != nil {
+				os.Exit(1)
+			}
+			return nil
+		})
+	releasesCmd.Arg("version", "Desired MAJOR.MINOR parts of a version").
+		HintOptions("1.0", "1.1").
+		StringVar(&versionStr)
+	releasesCmd.Arg("channel", "Channel is one of alpha|beta|rc|ea|stable").
+		HintOptions(multiwerf.AvailableChannels...).
+		EnumVar(&channelStr, multiwerf.AvailableChannels...)
+	releasesCmd.Flag("output", "Output format. text|json").
+		Short('o').
+		Default("text").
+		EnumVar(&outputFormat, []string{"text", "json"}...)
 
 	kingpin.MustParse(kpApp.Parse(os.Args[1:]))
 }
