@@ -32,15 +32,24 @@ type BinaryUpdater interface {
 	// multiwerf exit with error if no binary found remote or local
 	// check remote versions — check local version — if local need update — download and verify a hash
 	GetLatestBinaryInfo(version string, channel string) (binInfo BinaryInfo)
+
+	//
+	SetRemoteEnabled(enabled bool)
+	SetRemoteDelayed(delayed bool)
 }
 
 type MainBinaryUpdater struct {
 	BintrayClient bintray.BintrayClient
 	Messages      chan ActionMessage
+	RemoteEnabled bool
+	RemoteDelayed bool
 }
 
 func NewBinaryUpdater(messages chan ActionMessage) BinaryUpdater {
-	result := &MainBinaryUpdater{}
+	result := &MainBinaryUpdater{
+		RemoteEnabled: false,
+		RemoteDelayed: false,
+	}
 	result.BintrayClient = bintray.NewBintrayClient(app.BintraySubject, app.BintrayRepo, app.BintrayPackage)
 	result.Messages = messages
 	return result
@@ -114,7 +123,7 @@ func (u *MainBinaryUpdater) DownloadLatest(version string, channel string) (binI
 func (u *MainBinaryUpdater) GetLatestBinaryInfo(version string, channel string) (binInfo BinaryInfo) {
 	remoteBinInfo := BinaryInfo{}
 	remoteLatestVersion := ""
-	if app.Update == "yes" {
+	if u.RemoteEnabled && !u.RemoteDelayed {
 		var err error
 		remoteBinInfo, err = RemoteLatestBinaryInfo(version, channel, u.Messages, u.BintrayClient)
 		if err != nil {
@@ -139,6 +148,12 @@ func (u *MainBinaryUpdater) GetLatestBinaryInfo(version string, channel string) 
 		u.Messages <- ActionMessage{
 			msg:     fmt.Sprintf("Cannot determine latest version for %s/%s neither from bintray package '%s' nor from local storage %s", version, channel, app.BintrayPackage, app.StorageDir),
 			msgType: "fail",
+		}
+		if !u.RemoteEnabled || u.RemoteDelayed {
+			u.Messages <- ActionMessage{
+				msg:     fmt.Sprintf("Auto update of `%s` is disabled or delayed. Try `multiwerf update %s %s` command.", app.BintrayPackage, version, channel),
+				msgType: "warn",
+			}
 		}
 		// Show top 5 versions from remote or from local if remote is disabled
 		if len(remoteBinInfo.AvailableVersions) > 0 {
@@ -234,6 +249,14 @@ func (u *MainBinaryUpdater) GetLatestBinaryInfo(version string, channel string) 
 		err: fmt.Errorf("BUG: %s %s/%s detect remote version as '%s' and local '%s' but no action is performed.", app.BintrayPackage, version, channel, remoteLatestVersion, localLatestVersion),
 	}
 	return
+}
+
+func (u *MainBinaryUpdater) SetRemoteEnabled(enabled bool) {
+	u.RemoteEnabled = enabled
+}
+
+func (u *MainBinaryUpdater) SetRemoteDelayed(delayed bool) {
+	u.RemoteDelayed = delayed
 }
 
 // Get local latest for version/channel

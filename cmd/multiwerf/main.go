@@ -27,6 +27,7 @@ func main() {
 	var versionStr string
 	var channelStr string
 	var outputFormat string
+	var forceRemoteCheck bool
 
 	// multiwerf update
 	updateCmd := kpApp.
@@ -39,11 +40,11 @@ func main() {
 			}
 			return nil
 		})
-	updateCmd.Arg("version", "Desired MAJOR.MINOR parts of a version").
-		HintOptions("1.0", "1.1").
+	updateCmd.Arg("MAJOR.MINOR", "Selector of a release series. Examples: 1.0, 1.3.").
+		HintOptions("1.0", "1.3").
 		Required().
 		StringVar(&versionStr)
-	updateCmd.Arg("channel", "Channel is one of alpha|beta|rc|ea|stable").
+	updateCmd.Arg("CHANNEL", "Minimum acceptable level of stability. One of: alpha|beta|rc|ea|stable.").
 		HintOptions(multiwerf.AvailableChannels...).
 		Default("stable").
 		EnumVar(&channelStr, multiwerf.AvailableChannels...)
@@ -53,20 +54,22 @@ func main() {
 		Command("use", "Check for latest PATCH version available for channel and return a source script with alias function.").
 		Action(func(c *kingpin.ParseContext) error {
 			// TODO add special error to exit with 1 and not print error message with kingpin
-			err := multiwerf.Use(versionStr, channelStr, []string{})
+			err := multiwerf.Use(versionStr, channelStr, forceRemoteCheck, []string{})
 			if err != nil {
 				os.Exit(1)
 			}
 			return nil
 		})
-	useCmd.Arg("version", "Desired MAJOR.MINOR parts of a version").
-		HintOptions("1.0", "1.1").
+	useCmd.Arg("MAJOR.MINOR", "Selector of a release series. Examples: 1.0, 1.3.").
+		HintOptions("1.0", "1.3").
 		Required().
 		StringVar(&versionStr)
-	useCmd.Arg("channel", "Channel is one of alpha|beta|rc|ea|stable").
+	useCmd.Arg("CHANNEL", "Minimum acceptable level of stability. One of: alpha|beta|rc|ea|stable.").
 		HintOptions(multiwerf.AvailableChannels...).
 		Default("stable").
 		EnumVar(&channelStr, multiwerf.AvailableChannels...)
+	useCmd.Flag("force-remote-check", "Force check of `werf' versions in a remote storage (bintray). Do not reset delay file.").
+		BoolVar(&forceRemoteCheck)
 
 	// multiwerf available-releases
 	releasesCmd := kpApp.
@@ -79,13 +82,13 @@ func main() {
 			}
 			return nil
 		})
-	releasesCmd.Arg("version", "Desired MAJOR.MINOR parts of a version").
-		HintOptions("1.0", "1.1").
+	releasesCmd.Arg("MAJOR.MINOR", "Selector of a release series. Examples: 1.0, 1.3.").
+		HintOptions("1.0", "1.3").
 		StringVar(&versionStr)
-	releasesCmd.Arg("channel", "Channel is one of alpha|beta|rc|ea|stable").
+	releasesCmd.Arg("CHANNEL", "Minimum acceptable level of stability. One of: alpha|beta|rc|ea|stable.").
 		HintOptions(multiwerf.AvailableChannels...).
 		EnumVar(&channelStr, multiwerf.AvailableChannels...)
-	releasesCmd.Flag("output", "Output format. text|json").
+	releasesCmd.Flag("output", "Output format. One of: text|json.").
 		Short('o').
 		Default("text").
 		EnumVar(&outputFormat, []string{"text", "json"}...)

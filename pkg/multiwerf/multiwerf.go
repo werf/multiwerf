@@ -33,10 +33,9 @@ type ActionMessage struct {
 }
 
 // Use prints a shell script with alias to the latest binary version available for the channel
-func Use(version string, channel string, args []string) (err error) {
+func Use(version string, channel string, forceRemoteCheck bool, args []string) (err error) {
 	messages := make(chan ActionMessage, 0)
 	script := output.NewScript()
-	binUpdater := NewBinaryUpdater(messages)
 
 	// Check version argument and storage path
 	go func() {
@@ -59,7 +58,7 @@ func Use(version string, channel string, args []string) (err error) {
 
 	// Check for delay of self update
 	selfUpdateDelay := UpdateDelay{
-		Filename: filepath.Join(MultiwerfStorageDir, ".self-update.delay"),
+		Filename: filepath.Join(MultiwerfStorageDir, "update-multiwerf.delay"),
 	}
 	selfUpdateDelay.SetDelay(app.SelfUpdateDelay)
 	// if self update is enabled, check for delay and disable self update if needed
@@ -68,19 +67,6 @@ func Use(version string, channel string, args []string) (err error) {
 			selfUpdateDelay.UpdateTimestamp()
 		} else {
 			app.SelfUpdate = "no"
-		}
-	}
-
-	// Check for delay of werf update
-	updateDelay := UpdateDelay{
-		Filename: filepath.Join(MultiwerfStorageDir, fmt.Sprintf(".update-%s-%s.delay", version, channel)),
-	}
-	updateDelay.SetDelay(app.UpdateDelay)
-	if app.Update == "yes" {
-		if updateDelay.IsDelayPassed() {
-			updateDelay.UpdateTimestamp()
-		} else {
-			app.Update = "no"
 		}
 	}
 
@@ -93,7 +79,29 @@ func Use(version string, channel string, args []string) (err error) {
 		return err
 	}
 
-	// Update to latest version if neede. Use local version if remote communication failed.
+	binUpdater := NewBinaryUpdater(messages)
+
+	// Check for delay of werf update
+	updateDelay := UpdateDelay{
+		Filename: filepath.Join(MultiwerfStorageDir, fmt.Sprintf("update-%s-%s-%s.delay", app.BintrayPackage, version, channel)),
+	}
+	if channel == "alpha" || channel == "beta" {
+		updateDelay.SetDelay(app.AlphaBetaUpdateDelay)
+	} else {
+		updateDelay.SetDelay(app.UpdateDelay)
+	}
+
+	if app.Update == "yes" {
+		binUpdater.SetRemoteEnabled(true)
+		if updateDelay.IsDelayPassed() {
+			updateDelay.UpdateTimestamp()
+			binUpdater.SetRemoteDelayed(false)
+		} else {
+			binUpdater.SetRemoteDelayed(!forceRemoteCheck)
+		}
+	}
+
+	// Update to latest version if needed. Use local version if remote communication failed.
 	// Exit with error if no binaries found.
 	var binaryInfo BinaryInfo
 	go func() {
@@ -111,7 +119,6 @@ func Use(version string, channel string, args []string) (err error) {
 func Update(version string, channel string, args []string) (err error) {
 	messages := make(chan ActionMessage, 0)
 	printer := output.NewSimplePrint()
-	binUpdater := NewBinaryUpdater(messages)
 
 	// Check version argument and storage path
 	go func() {
@@ -135,7 +142,7 @@ func Update(version string, channel string, args []string) (err error) {
 
 	// Check for delay of self update
 	selfUpdateDelay := UpdateDelay{
-		Filename: filepath.Join(MultiwerfStorageDir, ".self-update.delay"),
+		Filename: filepath.Join(MultiwerfStorageDir, "update-multiwerf.delay"),
 	}
 	selfUpdateDelay.SetDelay(app.SelfUpdateDelay)
 	// if self update is enabled, check for delay and disable self update if needed
@@ -156,18 +163,27 @@ func Update(version string, channel string, args []string) (err error) {
 	if err != nil {
 		return err
 	}
+
 	// Update binary to latest version. Exit with error if remote communication failed.
+	binUpdater := NewBinaryUpdater(messages)
+	binUpdater.SetRemoteEnabled(true)
+	binUpdater.SetRemoteDelayed(false)
 	go binUpdater.DownloadLatest(version, channel)
 	err = PrintMessages(messages, printer)
 	if err != nil {
 		return err
 	}
 
-	// Update timestamp of delay of werf update
-	updateDelay := UpdateDelay{
-		Filename: filepath.Join(MultiwerfStorageDir, fmt.Sprintf(".update-%s-%s.delay", version, channel)),
+	// Update timestamp of delay of werf update. Also update timestamp for less stable channels.
+	for _, availableChannel := range AvailableChannels {
+		updateDelay := UpdateDelay{
+			Filename: filepath.Join(MultiwerfStorageDir, fmt.Sprintf("update-%s-%s-%s.delay", app.BintrayPackage, version, channel)),
+		}
+		updateDelay.UpdateTimestamp()
+		if channel == availableChannel {
+			break
+		}
 	}
-	updateDelay.UpdateTimestamp()
 
 	return nil
 }
