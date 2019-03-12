@@ -372,6 +372,38 @@ func RemoteLatestBinaryInfo(version string, channel string, messages chan Action
 	return
 }
 
+// RemoteLatestChannelsReleases searches for a latest available version in bintray for each channel
+func RemoteLatestChannelsReleases(version string, messages chan ActionMessage, btClient bintray.BintrayClient) (releases map[string]string, err error) {
+	releases = map[string]string{}
+
+	pkgInfo, err := btClient.GetPackage()
+	if err != nil {
+		err = fmt.Errorf("Get info for package '%s' error: %v", app.BintrayPackage, err)
+		return
+	}
+
+	versions := bintray.GetPackageVersions(pkgInfo)
+	if len(versions) == 0 {
+		err = fmt.Errorf("No versions found in bintray for '%s'", app.BintrayPackage)
+		return
+	} else {
+		messages <- ActionMessage{
+			msg:   fmt.Sprintf("Discover %d versions for %s of package %s", len(versions), version, app.BintrayPackage),
+			debug: true}
+	}
+
+	for _, channel := range AvailableChannels {
+		// Calc a latest version for version/channel
+		latestVersion, err := ChooseLatestVersion(version, channel, versions, AvailableChannels)
+		if err != nil {
+			messages <- ActionMessage{err: err}
+		}
+		releases[channel] = latestVersion
+	}
+
+	return
+}
+
 func DownloadVersion(version string, messages chan ActionMessage, btClient bintray.BintrayClient) (err error) {
 	// Verify hash for found version
 	dstPath := filepath.Join(MultiwerfStorageDir, version)

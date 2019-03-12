@@ -1,8 +1,10 @@
 package multiwerf
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/flant/multiwerf/pkg/app"
 	"github.com/flant/multiwerf/pkg/output"
@@ -166,6 +168,82 @@ func Update(version string, channel string, args []string) (err error) {
 		Filename: filepath.Join(MultiwerfStorageDir, fmt.Sprintf(".update-%s-%s.delay", version, channel)),
 	}
 	updateDelay.UpdateTimestamp()
+
+	return nil
+}
+
+func AvailableReleases(version string, channel string, outputFormat string) (err error) {
+	messages := make(chan ActionMessage, 0)
+	printer := output.NewPlainPrint()
+
+	if version != "" {
+		// Check version argument
+		go func() {
+			err := CheckMajorMinor(version)
+			if err != nil {
+				messages <- ActionMessage{err: err}
+			}
+			messages <- ActionMessage{action: "exit"}
+		}()
+		err = PrintMessages(messages, printer)
+		if err != nil {
+			return err
+		}
+	}
+
+	informer := NewAvailableReleasesInformer(messages)
+	go func() {
+		if version == "" && channel == "" {
+			messages <- ActionMessage{msg: "Start GetRelease", debug: true}
+			_, err := informer.GetMajorMinorReleases()
+			if err != nil {
+				messages <- ActionMessage{err: err, action: "exit"}
+				return
+			}
+			messages <- ActionMessage{msg: "major.minor releases", msgType: "ok"}
+		} else {
+			if channel == "" {
+				messages <- ActionMessage{msg: "Start GetAllChannelsReleases", debug: true}
+				releases, err := informer.GetAllChannelsReleases(version)
+				if err != nil {
+					messages <- ActionMessage{err: err, action: "exit"}
+					return
+				}
+				msg := ""
+				if outputFormat == "text" {
+					outMessages := []string{}
+					for _, channel := range releases.Channels {
+						outMessages = append(outMessages, fmt.Sprintf("%s %s", channel, releases.Releases[channel]))
+					}
+					msg = strings.Join(outMessages, "\n")
+				}
+				if outputFormat == "json" {
+					b, err := json.Marshal(releases)
+					if err != nil {
+						messages <- ActionMessage{err: err, action: "exit"}
+						return
+					}
+					msg = string(b)
+				}
+				messages <- ActionMessage{msg: msg, msgType: "ok"}
+			} else {
+				messages <- ActionMessage{msg: "Start GetRelease", debug: true}
+				release, err := informer.GetRelease(version, channel)
+				if err != nil {
+					messages <- ActionMessage{err: err, action: "exit"}
+					return
+				}
+				messages <- ActionMessage{msg: release, msgType: "ok"}
+			}
+		}
+
+		// Stop printing
+		messages <- ActionMessage{action: "exit"}
+	}()
+	err = PrintMessages(messages, printer)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
