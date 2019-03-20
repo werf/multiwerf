@@ -17,6 +17,13 @@ var AvailableChannels = []string{
 	"ea",
 	"stable",
 }
+var AvailableChannelsStableFirst = []string{
+	"stable",
+	"ea",
+	"rc",
+	"beta",
+	"alpha",
+}
 
 // MultiwerfStorageDir is an effective path to a storage
 var MultiwerfStorageDir string
@@ -228,8 +235,8 @@ func AvailableReleases(version string, channel string, outputFormat string) (err
 				msg := ""
 				if outputFormat == "text" {
 					outMessages := []string{}
-					for _, channel := range releases.Channels {
-						outMessages = append(outMessages, fmt.Sprintf("%s %s", channel, releases.Releases[channel]))
+					for _, release := range releases.OrderedReleases {
+						outMessages = append(outMessages, fmt.Sprintf("%s %v", release, releases.Releases[release]))
 					}
 					msg = strings.Join(outMessages, "\n")
 				}
