@@ -396,8 +396,9 @@ func RemoteLatestBinaryInfo(version string, channel string, messages chan Action
 }
 
 // RemoteLatestChannelsReleases searches for a latest available version in bintray for each channel
-func RemoteLatestChannelsReleases(version string, messages chan ActionMessage, btClient bintray.BintrayClient) (releases map[string]string, err error) {
-	releases = map[string]string{}
+func RemoteLatestChannelsReleases(version string, messages chan ActionMessage, btClient bintray.BintrayClient) (orderedReleases []string, releases map[string][]string, err error) {
+	orderedReleases = make([]string, 0)
+	releases = make(map[string][]string, 0)
 
 	pkgInfo, err := btClient.GetPackage()
 	if err != nil {
@@ -415,13 +416,29 @@ func RemoteLatestChannelsReleases(version string, messages chan ActionMessage, b
 			debug: true}
 	}
 
+	releaseForChannel := make(map[string]string)
+
 	for _, channel := range AvailableChannels {
 		// Calc a latest version for version/channel
 		latestVersion, err := ChooseLatestVersion(version, channel, versions, AvailableChannels)
 		if err != nil {
 			messages <- ActionMessage{err: err}
 		}
-		releases[channel] = latestVersion
+		releaseForChannel[channel] = latestVersion
+	}
+
+	for _, channel := range AvailableChannelsStableFirst {
+		release := releaseForChannel[channel]
+		if release == "" {
+			continue
+		}
+		channelTag := fmt.Sprintf("%s %s", version, channel)
+		if _, ok := releases[release]; !ok {
+			releases[release] = []string{channelTag}
+			orderedReleases = append(orderedReleases, release)
+		} else {
+			releases[release] = append(releases[release], channelTag)
+		}
 	}
 
 	return

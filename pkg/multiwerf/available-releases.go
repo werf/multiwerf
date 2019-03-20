@@ -16,9 +16,11 @@ type AvailableReleasesInformer interface {
 	GetRelease(version string, channel string) (string, error)
 }
 
+// {"orderedChannels":[stable, ea, ...], orderedReleases: ["v1.1.0","v1.1.1-alpha.10"], releases:{"v1.1.0":[stable,ea], "v1.1.1-alpha.10":["alpha"]}}
 type AllChannelsReleasesInfo struct {
-	Channels []string          `json:"channels"`
-	Releases map[string]string `json:"releases"`
+	OrderedChannels []string            `json:"orderedChannels"`
+	OrderedReleases []string            `json:"orderedReleases"`
+	Releases        map[string][]string `json:"releases"`
 }
 
 type MainAvailableReleasesInformer struct {
@@ -40,11 +42,15 @@ func (m *MainAvailableReleasesInformer) GetMajorMinorReleases() ([]string, error
 
 // TODO
 func (m *MainAvailableReleasesInformer) GetAllChannelsReleases(version string) (info AllChannelsReleasesInfo, err error) {
-	releases, err := RemoteLatestChannelsReleases(version, m.Messages, m.BintrayClient)
+	orderedReleases, releases, err := RemoteLatestChannelsReleases(version, m.Messages, m.BintrayClient)
 	if err != nil {
 		return
 	}
-	return AllChannelsReleasesInfo{Channels: AvailableChannels, Releases: releases}, nil
+	return AllChannelsReleasesInfo{
+		OrderedChannels: AvailableChannelsStableFirst,
+		OrderedReleases: orderedReleases,
+		Releases:        releases,
+	}, nil
 }
 
 func (m *MainAvailableReleasesInformer) GetRelease(version string, channel string) (string, error) {
