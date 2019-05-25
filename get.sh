@@ -28,7 +28,7 @@ EOF
 function get_latest_version {
   local url="${1}"
   local version
-  version="$(curl -sI "${url}" | grep "Location:" | sed -n 's%.*multiwerf/%%;s%/view.*%%;s%\r%%;p' )"
+  version="$(curl -s "${url}" -w "%{redirect_url}" | sed 's%.*multiwerf/%%;s%/view.*%%')"
 
   if [ -z "${version}" ]; then
     echo "There doesn't seem to be a version of ${PROGRAM} avaiable at ${url}." 1>&2
