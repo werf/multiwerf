@@ -134,14 +134,17 @@ func (u *MainBinaryUpdater) GetLatestBinaryInfo(version string, channel string) 
 		remoteLatestVersion = remoteBinInfo.Version
 	}
 
+	var llbiErr error
+	localLatestVersion := ""
 	localBinaryInfo, err := LocalLatestBinaryInfo(version, channel, u.Messages)
 	if err != nil {
+		llbiErr = err
 		u.Messages <- ActionMessage{
 			msg:     err.Error(),
 			msgType: "warn"}
+	} else {
+		localLatestVersion = localBinaryInfo.Version
 	}
-
-	localLatestVersion := localBinaryInfo.Version
 
 	// no remote, no local — exit with error
 	if remoteLatestVersion == "" && localLatestVersion == "" {
@@ -192,6 +195,19 @@ func (u *MainBinaryUpdater) GetLatestBinaryInfo(version string, channel string) 
 	// has local and no remote or local is equal to remote — no update needed, stay at local version
 	if localLatestVersion != "" {
 		if (remoteLatestVersion == "" || localLatestVersion == remoteLatestVersion) && localBinaryInfo.HashVerified {
+			if localBinaryInfo.BinaryPath == "" {
+				u.Messages <- ActionMessage{
+					err: fmt.Errorf("BUG: empty path. Please, report: rlv=[%v] llv=[%v] v=[%v] av=[%+v] hv=[%v] ver=[%v] ch=[%v] llbierr=[%v]",
+						remoteLatestVersion,
+						localLatestVersion,
+						localBinaryInfo.Version,
+						localBinaryInfo.AvailableVersions,
+						localBinaryInfo.HashVerified,
+						version,
+						channel,
+						llbiErr)}
+
+			}
 			u.Messages <- ActionMessage{
 				comment: "no update needed",
 				msg:     fmt.Sprintf("%s %s/%s stays at %s", app.BintrayPackage, version, channel, localLatestVersion),
@@ -267,46 +283,17 @@ func (u *MainBinaryUpdater) SetRemoteDelayed(delayed bool) {
 // remote errored or no version at all but local version is present — go to sha256 sum
 // if no local but remote — skip local check, go to download
 
-// LocalLatestBinaryInfo return BinaryInfo for latest localy available version
+// LocalLatestBinaryInfo returns BinaryInfo for latest locally available version
 //
 // 1. find version dirs in ~/.multiwerf
 // 2. find latest version for channel and verify a hash for that binary
 func LocalLatestBinaryInfo(version string, channel string, messages chan ActionMessage) (binInfo BinaryInfo, err error) {
 
 	// create list of directories that names look like a semver
-	subDirs := []string{}
-	errMsgs := []string{}
-
-	filepath.Walk(MultiwerfStorageDir, func(filePath string, fi os.FileInfo, err error) error {
-		if err != nil {
-			errMsgs = append(errMsgs, err.Error())
-			return nil
-		}
-
-		if fi.IsDir() {
-			// No action for initial directory
-			if filePath == MultiwerfStorageDir {
-				return nil
-			}
-			// Skip hidden directories inside initial directory
-			if strings.HasPrefix(fi.Name(), ".") {
-				return filepath.SkipDir
-			}
-
-			v, vErr := semver.NewVersion(fi.Name())
-			if vErr != nil {
-				errMsgs = append(errMsgs, err.Error())
-				return filepath.SkipDir
-			}
-			subDirs = append(subDirs, v.Original())
-			// Do not go deeper
-			return filepath.SkipDir
-		}
-
-		return nil
-	})
-	if len(errMsgs) > 0 {
-		err = errors.New(strings.Join(errMsgs, "\n"))
+	// FIXME: handle warn message properly
+	subDirs, _, err := FindSemverDirs(MultiwerfStorageDir)
+	if err != nil {
+		return
 	}
 
 	binInfo.AvailableVersions = subDirs
@@ -328,6 +315,54 @@ func LocalLatestBinaryInfo(version string, channel string, messages chan ActionM
 	exactBinInfo.AvailableVersions = subDirs
 
 	return exactBinInfo, nil
+}
+
+func FindSemverDirs(path string) ([]string, string, error) {
+	// create list of directories that names look like a semver
+	subDirs := []string{}
+	errMsgs := []string{}
+	warn := ""
+	warnMsgs := []string{}
+
+	err := filepath.Walk(MultiwerfStorageDir, func(filePath string, fi os.FileInfo, err error) error {
+		if err != nil {
+			errMsgs = append(errMsgs, err.Error())
+			return nil
+		}
+
+		if fi.IsDir() {
+			// No action for initial directory
+			if filePath == path {
+				return nil
+			}
+			// Skip hidden directories inside initial directory
+			if strings.HasPrefix(fi.Name(), ".") {
+				return filepath.SkipDir
+			}
+
+			_, vErr := semver.NewVersion(fi.Name())
+			if vErr != nil {
+				warnMsgs = append(warnMsgs, fmt.Sprintf("%s: %v", fi.Name(), vErr.Error()))
+				return filepath.SkipDir
+			}
+			subDirs = append(subDirs, fi.Name())
+			// Do not go deeper
+			return filepath.SkipDir
+		}
+
+		return nil
+	})
+	if err != nil {
+		return []string{}, "", err
+	}
+	if len(errMsgs) > 0 {
+		err = errors.New(strings.Join(errMsgs, "\n"))
+		return []string{}, "", err
+	}
+	if len(warnMsgs) > 0 {
+		warn = fmt.Sprintf("warnMsgs: %+v\n", warnMsgs)
+	}
+	return subDirs, warn, nil
 }
 
 // GetBinaryInfo return BinaryInfo object for binary with exact version if it is
