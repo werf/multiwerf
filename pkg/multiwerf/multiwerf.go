@@ -80,6 +80,8 @@ func Use(version string, channel string, forceRemoteCheck bool, args []string) (
 	// update multiwerf binary (self update)
 	go func() {
 		SelfUpdate(messages)
+		// Stop PrintMessages after return from SelfUpdate
+		messages <- ActionMessage{action: "exit"}
 	}()
 	err = PrintMessages(messages, script.Printer)
 	if err != nil {
@@ -113,6 +115,8 @@ func Use(version string, channel string, forceRemoteCheck bool, args []string) (
 	var binaryInfo BinaryInfo
 	go func() {
 		binaryInfo = binUpdater.GetLatestBinaryInfo(version, channel)
+		// Stop PrintMessages after return from GetLatestBinaryInfo
+		messages <- ActionMessage{action: "exit"}
 	}()
 	err = PrintMessages(messages, script.Printer)
 	if err != nil {
@@ -165,6 +169,8 @@ func Update(version string, channel string, args []string) (err error) {
 	go func() {
 		messages <- ActionMessage{msg: "Start SelfUpdate", debug: true}
 		SelfUpdate(messages)
+		// Stop PrintMessages after return from SelfUpdate
+		messages <- ActionMessage{action: "exit"}
 	}()
 	err = PrintMessages(messages, printer)
 	if err != nil {
@@ -175,7 +181,11 @@ func Update(version string, channel string, args []string) (err error) {
 	binUpdater := NewBinaryUpdater(messages)
 	binUpdater.SetRemoteEnabled(true)
 	binUpdater.SetRemoteDelayed(false)
-	go binUpdater.DownloadLatest(version, channel)
+	go func() {
+		binUpdater.DownloadLatest(version, channel)
+		// Stop PrintMessages after return from DownloadLatest
+		messages <- ActionMessage{action: "exit"}
+	}()
 	err = PrintMessages(messages, printer)
 	if err != nil {
 		return err

@@ -30,7 +30,6 @@ func SelfUpdate(messages chan ActionMessage) {
 				stage:   "self-update"}
 		}
 	}
-	messages <- ActionMessage{action: "exit"}
 }
 
 func DoSelfUpdate(messages chan ActionMessage) string {
