@@ -34,7 +34,7 @@ for os_arch in "${OS_ARCHS[@]}"; do
 
   echo "# Building ${BASE_NAME} $VERSION for $os $arch ..."
 
-  GOOS=${os} GOARCH=${arch} \
+  GOOS=${os} GOARCH=${arch} CGO_ENABLED=0 \
   go build -ldflags="-s -w -X ${VERSION_VAR_NAME}=${VERSION} -X github.com/flant/multiwerf/pkg/app.OsArch=${os}-${arch}" \
            -o "${outputFile}" "${BUILD_PACKAGE}"
 done
