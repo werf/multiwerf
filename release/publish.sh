@@ -68,7 +68,11 @@ main() {
     echo "  Bintray: cannot create a version without token"
   fi
   if [ -n "$GITHUB_TOKEN" ] ; then
-    github_create_release && echo "  Github: Release $VERSION for tag $GIT_TAG created" || ( exit 1 )
+    if github_create_release ; then
+      echo "  Github: Release $VERSION for tag $GIT_TAG created"
+    else
+      exit 1
+    fi
     echo GITHUB_RELEASE_ID='"'"${GITHUB_RELEASE_ID}"'"'
   else
     echo "  Github: cannot create release without token"
@@ -84,6 +88,8 @@ main() {
        ( bintray_upload_file_into_version "$VERSION" "$filename" "$VERSION/$filename" ) || ( exit 1 )
      done
     )
+    echo "  Publish files"
+    ( bintray_publish_files_in_version "$VERSION" ) || ( exit 1 )
   else
     echo "  Bintray: cannot upload without token"
   fi
@@ -144,7 +150,6 @@ bintray_upload_file_into_version() {
 
   curlResponse=$(mktemp)
   status=$(curl -s -w '%{http_code}' -o "$curlResponse" \
-      --header "X-Bintray-Publish: 1" \
       --header "X-Bintray-Override: 1" \
       --header "X-Bintray-Package: $BINTRAY_PACKAGE" \
       --header "X-Bintray-Version: $VERSION" \
@@ -167,6 +172,31 @@ bintray_upload_file_into_version() {
   else
     dlUrl="https://dl.bintray.com/${BINTRAY_SUBJECT}/${BINTRAY_REPO}/${DESTINATION_PATH}"
     echo "Bintray: $DESTINATION_PATH uploaded to ${dlUrl}"
+  fi
+
+  return $ret
+}
+
+bintray_publish_files_in_version() {
+  local VERSION=$1
+
+  curlResponse=$(mktemp)
+  status=$(curl -s -w '%{http_code}' -o "$curlResponse" \
+      --request POST \
+      --user "$BINTRAY_AUTH" \
+      --header "Content-type: application/json" \
+      "https://api.bintray.com/content/${BINTRAY_SUBJECT}/${BINTRAY_REPO}/${BINTRAY_PACKAGE}/${VERSION}/publish"
+  )
+
+  echo "Bintray publish files in version ${VERSION}: curl return status $status with response"
+  cat "$curlResponse"
+  echo
+  rm "$curlResponse"
+
+  ret=0
+  if [ "x$(echo "$status" | cut -c1)" != "x2" ]
+  then
+    ret=1
   fi
 
   return $ret
