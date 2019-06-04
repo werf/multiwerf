@@ -65,7 +65,7 @@ func (u *MainBinaryUpdater) DownloadLatest(version string, channel string) (binI
 
 	remoteBinInfo, err := RemoteLatestBinaryInfo(version, channel, u.Messages, u.BintrayClient)
 	if err != nil {
-		u.Messages <- ActionMessage{err: err, action: "exit"}
+		u.Messages <- ActionMessage{err: err}
 		return
 	}
 
@@ -80,8 +80,7 @@ func (u *MainBinaryUpdater) DownloadLatest(version string, channel string) (binI
 		u.Messages <- ActionMessage{
 			comment: "no update needed",
 			msg:     fmt.Sprintf("%s %s/%s stays at %s", app.BintrayPackage, version, channel, latestVersion),
-			msgType: "ok",
-			action:  "exit"}
+			msgType: "ok"}
 		return
 	}
 
@@ -111,8 +110,7 @@ func (u *MainBinaryUpdater) DownloadLatest(version string, channel string) (binI
 	u.Messages <- ActionMessage{
 		comment: fmt.Sprintf("# update %s success", app.BintrayPackage),
 		msg:     fmt.Sprintf("%s %s/%s updated to %s", app.BintrayPackage, version, channel, latestVersion),
-		msgType: "ok",
-		action:  "exit"}
+		msgType: "ok"}
 
 	return binInfo
 }
@@ -211,8 +209,7 @@ func (u *MainBinaryUpdater) GetLatestBinaryInfo(version string, channel string) 
 			u.Messages <- ActionMessage{
 				comment: "no update needed",
 				msg:     fmt.Sprintf("%s %s/%s stays at %s", app.BintrayPackage, version, channel, localLatestVersion),
-				msgType: "ok",
-				action:  "exit"}
+				msgType: "ok"}
 			return localBinaryInfo
 		}
 		if remoteLatestVersion == "" && !localBinaryInfo.HashVerified {
@@ -255,8 +252,7 @@ func (u *MainBinaryUpdater) GetLatestBinaryInfo(version string, channel string) 
 		u.Messages <- ActionMessage{
 			comment: fmt.Sprintf("# update %s success", app.BintrayPackage),
 			msg:     fmt.Sprintf("%s %s/%s updated to %s", app.BintrayPackage, version, channel, remoteLatestVersion),
-			msgType: "ok",
-			action:  "exit"}
+			msgType: "ok"}
 		return newBinInfo
 	}
 
