@@ -142,17 +142,22 @@ func DirExists(path string) (bool, error) {
 	return false, nil
 }
 
-// TildeExpand expands tilde prefix into HOME directory
+// TildeExpand expands tilde prefix with home directory path
 func TildeExpand(path string) (string, error) {
 	if len(path) == 0 || path[0] != '~' {
 		return path, nil
 	}
 
-	usr, err := user.Current()
-	if err != nil {
-		return "", err
+	homeDir := os.Getenv("HOME")
+	if homeDir == "" {
+		usr, err := user.Current()
+		if err != nil {
+			return "", err
+		}
+		homeDir = usr.HomeDir
 	}
-	return filepath.Join(usr.HomeDir, path[1:]), nil
+
+	return filepath.Join(homeDir, path[1:]), nil
 }
 
 // VerifyReleaseFileHash verify targetFile in dir accroding to hashFile in dir
