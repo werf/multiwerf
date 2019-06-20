@@ -482,7 +482,7 @@ func DownloadVersion(version string, messages chan ActionMessage, btClient bintr
 
 	messages <- ActionMessage{msg: "Start downloading", debug: true}
 
-	err = btClient.DownloadRelease(version, dstPath, files)
+	err = btClient.DownloadFiles(version, dstPath, files)
 	if err != nil {
 		return err
 	}

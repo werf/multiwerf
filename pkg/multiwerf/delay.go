@@ -6,8 +6,9 @@ import (
 )
 
 type Delayable interface {
-	SetDelay(d time.Duration)
+	WithDelay(d time.Duration)
 	IsDelayPassed() bool
+	TimeRemains() string
 	UpdateTimestamp()
 }
 
@@ -16,7 +17,7 @@ type UpdateDelay struct {
 	Delay    time.Duration
 }
 
-func (u *UpdateDelay) SetDelay(d time.Duration) {
+func (u *UpdateDelay) WithDelay(d time.Duration) {
 	u.Delay = d
 }
 
@@ -40,9 +41,29 @@ func (u *UpdateDelay) IsDelayPassed() bool {
 	return false
 }
 
-// UpdateTimestamp sets delay timestamp as now()
+// TimeRemains returns a string representation of time until delay is passed.
+// Empty string is returned if delay is passed
+func (u *UpdateDelay) TimeRemains() string {
+	info, err := os.Stat(u.Filename)
+	// File is not exists — delay is passed
+	if err != nil {
+		return ""
+	}
+
+	now := time.Now()
+	delayed := info.ModTime().Add(u.Delay)
+
+	if delayed.After(now) {
+		diff := time.Second * time.Duration(delayed.Unix()-now.Unix())
+		return diff.String()
+	}
+
+	return ""
+}
+
+// UpdateTimestamp sets delay timestamp as now() be recreating a delay file
 func (u *UpdateDelay) UpdateTimestamp() {
-	os.Remove(u.Filename)
+	_ = os.Remove(u.Filename)
 	f, _ := os.Create(u.Filename)
-	f.Close()
+	_ = f.Close()
 }
