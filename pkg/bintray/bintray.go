@@ -7,8 +7,13 @@ import (
 	"github.com/flant/multiwerf/pkg/http"
 )
 
-const btApiUrl = "https://api.bintray.com"
-const btDlUrl = "https://dl.bintray.com"
+const DefaultBintrayApiUrl = "https://api.bintray.com"
+const DefaultBintrayDlUrl = "https://dl.bintray.com"
+
+var (
+	BintrayApiUrl string
+	BintrayDlUrl  string
+)
 
 type BintrayEvent struct {
 	Msg   string
@@ -17,9 +22,9 @@ type BintrayEvent struct {
 }
 
 type BintrayClient interface {
-	GetPackage() (string, error)
-	DownloadRelease(version string, dstDir string, files map[string]string) error
-	FetchReleaseFile(version string, fileName string) (string, error)
+	GetPackageInfo() (string, error)
+	DownloadFiles(version string, dstDir string, files map[string]string) error
+	GetFileContent(version string, fileName string) (string, error)
 	EventCh() chan BintrayEvent
 }
 
@@ -31,6 +36,12 @@ type MainBintrayClient struct {
 }
 
 func NewBintrayClient(subject string, repo string, pkg string) (bc BintrayClient) {
+	if BintrayApiUrl == "" {
+		BintrayApiUrl = DefaultBintrayApiUrl
+	}
+	if BintrayDlUrl == "" {
+		BintrayDlUrl = DefaultBintrayDlUrl
+	}
 	bc = &MainBintrayClient{
 		Subject: subject,
 		Repo:    repo,
@@ -40,9 +51,9 @@ func NewBintrayClient(subject string, repo string, pkg string) (bc BintrayClient
 	return bc
 }
 
-// GetPackage returns json response from packages API
-func (bc *MainBintrayClient) GetPackage() (string, error) {
-	apiUrl := fmt.Sprintf("%s/packages/%s/%s/%s", btApiUrl, bc.Subject, bc.Repo, bc.Package)
+// GetPackageInfo returns json response from packages API
+func (bc *MainBintrayClient) GetPackageInfo() (string, error) {
+	apiUrl := fmt.Sprintf("%s/packages/%s/%s/%s", BintrayApiUrl, bc.Subject, bc.Repo, bc.Package)
 	response, err := http.MakeRestAPICall("GET", apiUrl)
 	if err != nil {
 		return "", err
@@ -67,8 +78,8 @@ func GetPackageVersions(packageInfo string) (versions []string) {
 	return versions
 }
 
-func (bc *MainBintrayClient) DownloadRelease(version string, dstDir string, files map[string]string) error {
-	srcUrl := fmt.Sprintf("%s/%s/%s/%s", btDlUrl, bc.Subject, bc.Repo, version)
+func (bc *MainBintrayClient) DownloadFiles(version string, dstDir string, files map[string]string) error {
+	srcUrl := fmt.Sprintf("%s/%s/%s/%s", BintrayDlUrl, bc.Subject, bc.Repo, version)
 
 	for fileType, fileName := range files {
 		// TODO implement goreleaser lifecycle and verify gpg signing
@@ -78,15 +89,15 @@ func (bc *MainBintrayClient) DownloadRelease(version string, dstDir string, file
 		fileUrl := fmt.Sprintf("%s/%s", srcUrl, fileName)
 		err := http.DownloadLargeFile(fileUrl, dstDir, fileName)
 		if err != nil {
-			return fmt.Errorf("GET %s error: %v", fileUrl, err)
+			return fmt.Errorf("%s download error: %v", fileUrl, err)
 		}
 	}
 
 	return nil
 }
 
-func (bc *MainBintrayClient) FetchReleaseFile(version string, fileName string) (string, error) {
-	srcUrl := fmt.Sprintf("%s/%s/%s/%s", btDlUrl, bc.Subject, bc.Repo, version)
+func (bc *MainBintrayClient) GetFileContent(version string, fileName string) (string, error) {
+	srcUrl := fmt.Sprintf("%s/%s/%s/%s", BintrayDlUrl, bc.Subject, bc.Repo, version)
 	fileUrl := fmt.Sprintf("%s/%s", srcUrl, fileName)
 	return http.MakeRestAPICall("GET", fileUrl)
 }

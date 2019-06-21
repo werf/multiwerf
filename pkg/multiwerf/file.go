@@ -75,6 +75,25 @@ func ReleaseFiles(pkg string, version string, osArch string) map[string]string {
 	return files
 }
 
+func IsReleaseFilesExist(dir string, files map[string]string) (bool, error) {
+	exist := true
+	for fileType, fileName := range files {
+		if fileType == "sig" {
+			continue
+		}
+		fExist, err := FileExists(dir, fileName)
+		if err != nil {
+			return false, err
+		}
+		if !fExist {
+			exist = false
+			break
+		}
+	}
+
+	return exist, nil
+}
+
 // LoadHashFile opens a file and returns hashes map
 func LoadHashFile(dir string, fileName string) (hashes map[string]string) {
 	filePath := filepath.Join(dir, fileName)
@@ -161,14 +180,18 @@ func TildeExpand(path string) (string, error) {
 }
 
 // VerifyReleaseFileHash verify targetFile in dir accroding to hashFile in dir
-// TODO transform to VerifyFileHash — return 4 states: no hash file, no target file, not match, match
+//
+// There are three states:
+// - err != nil if something is missing
+// false, nil if files are exists, we got hash for file and hashes is not matched
+// true, nil is hashes is matched
 func VerifyReleaseFileHash(dir string, hashFile string, targetFile string) (bool, error) {
 	hashFileExists, err := FileExists(dir, hashFile)
 	if err != nil {
 		return false, err
 	}
 	if !hashFileExists {
-		return false, nil
+		return false, fmt.Errorf("%s is not exists", hashFile)
 	}
 
 	prgFileExists, err := FileExists(dir, targetFile)
@@ -176,10 +199,14 @@ func VerifyReleaseFileHash(dir string, hashFile string, targetFile string) (bool
 		return false, err
 	}
 	if !prgFileExists {
-		return false, nil
+		return false, fmt.Errorf("%s is not exists", targetFile)
 	}
 
 	hashes := LoadHashFile(dir, hashFile)
+
+	if len(hashes) == 0 {
+		return false, fmt.Errorf("%s is empty or is not a checksums file", hashFile)
+	}
 
 	return VerifyReleaseFileHashFromHashes(dir, hashes, targetFile)
 }
@@ -188,12 +215,12 @@ func VerifyReleaseFileHash(dir string, hashFile string, targetFile string) (bool
 func VerifyReleaseFileHashFromHashes(dir string, hashes map[string]string, targetFile string) (bool, error) {
 	hashForFile, hasHash := hashes[targetFile]
 	if !hasHash {
-		return false, nil
+		return false, fmt.Errorf("there is not checksum for %s", targetFile)
 	}
 
 	hash, err := CalculateSHA256(filepath.Join(dir, targetFile))
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("sha256 failed for %s: %v", targetFile, err)
 	}
 
 	if hash != hashForFile {

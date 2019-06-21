@@ -4,36 +4,19 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/flant/multiwerf/pkg/app"
 	"github.com/flant/multiwerf/pkg/bintray"
-	"strings"
 )
 
 var multiwerfProlog = fmt.Sprintf("%s %s self-update", app.AppName, app.Version)
 
 // SelfUpdate checks for new version of multiwerf, download it and execute as a new process.
 // Note: multiwerf has no option to exit on self-update errors.
-func SelfUpdate(messages chan ActionMessage) {
-	selfPath := ""
-	if app.SelfUpdate == "yes" {
-		selfPath = DoSelfUpdate(messages)
-	}
-	if selfPath != "" {
-		err := ExecUpdatedBinary(selfPath)
-		if err != nil {
-			messages <- ActionMessage{
-				comment: "self update error",
-				msg:     fmt.Sprintf("%s: exec of updated binary failed: %v", multiwerfProlog, err),
-				msgType: "fail",
-				stage:   "self-update"}
-		}
-	}
-}
-
-func DoSelfUpdate(messages chan ActionMessage) string {
-	// TODO check executable is writable and stop self update if it is not.
+func SelfUpdate(messages chan ActionMessage) string {
+	// TODO check if executable is writable and stop self update if it is not.
 	selfPath, err := GetSelfExecutableInfo()
 	if err != nil {
 		messages <- ActionMessage{
@@ -45,11 +28,11 @@ func DoSelfUpdate(messages chan ActionMessage) string {
 	err = CheckIsFileWritable(selfPath)
 	if err != nil {
 		messages <- ActionMessage{
-			msg:   fmt.Sprintf("%s: check is writable error: %v", multiwerfProlog, err),
+			msg:   fmt.Sprintf("%s: check for writable file error: %v", multiwerfProlog, err),
 			debug: true}
 		messages <- ActionMessage{
 			comment: "self update warning",
-			msg:     fmt.Sprintf("Multiwerf self-update is disabled. Executable file is not writable."),
+			msg:     fmt.Sprintf("Skip self-update: executable file is not writable."),
 			msgType: "warn",
 			stage:   "self-update"}
 		return ""
@@ -60,7 +43,7 @@ func DoSelfUpdate(messages chan ActionMessage) string {
 
 	btClient := bintray.NewBintrayClient(app.SelfBintraySubject, app.SelfBintrayRepo, app.SelfBintrayPackage)
 
-	pkgInfo, err := btClient.GetPackage()
+	pkgInfo, err := btClient.GetPackageInfo()
 	if err != nil {
 		messages <- ActionMessage{
 			comment: "self update error",
@@ -125,7 +108,7 @@ func DoSelfUpdate(messages chan ActionMessage) string {
 		debug: true}
 
 	messages <- ActionMessage{msg: fmt.Sprintf("%s: start downloading", multiwerfProlog), debug: true}
-	err = btClient.DownloadRelease(latestVersion, selfDir, downloadFiles)
+	err = btClient.DownloadFiles(latestVersion, selfDir, downloadFiles)
 	if err != nil {
 		messages <- ActionMessage{
 			comment: "self update error",
@@ -136,7 +119,7 @@ func DoSelfUpdate(messages chan ActionMessage) string {
 	}
 
 	// TODO add hash verification!
-	sha256sums, err := btClient.FetchReleaseFile(latestVersion, files["hash"])
+	sha256sums, err := btClient.GetFileContent(latestVersion, files["hash"])
 	if err != nil {
 		messages <- ActionMessage{
 			comment: "self update error",

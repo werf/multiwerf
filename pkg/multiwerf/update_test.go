@@ -18,7 +18,7 @@ func Test_GetBinaryInfo(t *testing.T) {
 	var err error
 
 	go func() {
-		info, err = GetBinaryInfo("v1.0.1-beta.9", msgsCh)
+		info, err = GetVerifiedBinaryInfo("v1.0.1-beta.9", msgsCh)
 		msgsCh <- ActionMessage{
 			action: "exit",
 		}
