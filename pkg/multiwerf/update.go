@@ -11,6 +11,7 @@ import (
 
 	"github.com/flant/multiwerf/pkg/app"
 	"github.com/flant/multiwerf/pkg/bintray"
+	"github.com/flant/multiwerf/pkg/util"
 )
 
 type BinaryInfo struct {
@@ -21,34 +22,34 @@ type BinaryInfo struct {
 }
 
 type BinaryUpdater interface {
-	// this method is intended to update a binary from remote source
-	// check remote latest → get local latest → if local need update → download and verify a hash
+	// DownloadLatest updates a binary in local storage from remote source
+	//
+	// Check remote latest → get local latest → if local need update → download and verify a hash
 	// ↑no remote — error/exit
 	//                       ↑no local — no error
 	//                                                                 ↑ error if download failed or hash not verified
 	DownloadLatest(version string, channel string) (binInfo BinaryInfo)
 
-	// this method return BinaryInfo instance
-	// multiwerf exit with error if no binary found remote or local
-	// check remote versions — check local version — if local need update — download and verify a hash
+	// GetLatestBinaryInfo returns BinaryInfo instance with path to the program of latest version.
+	//
+	// If remote is enabled, then method tries to get a latest version from remote source and verify a hash.
+	//
+	// If remote is not enabled or remote update was not successfull, then method check if local latest version is good.
 	GetLatestBinaryInfo(version string, channel string) (binInfo BinaryInfo)
 
-	//
+	// SetRemoteEnabled sets remoteEnabled flag
 	SetRemoteEnabled(enabled bool)
-	SetRemoteDelayed(delayed bool)
 }
 
 type MainBinaryUpdater struct {
 	BintrayClient bintray.BintrayClient
 	Messages      chan ActionMessage
 	RemoteEnabled bool
-	RemoteDelayed bool
 }
 
 func NewBinaryUpdater(messages chan ActionMessage) BinaryUpdater {
 	result := &MainBinaryUpdater{
 		RemoteEnabled: false,
-		RemoteDelayed: false,
 	}
 	result.BintrayClient = bintray.NewBintrayClient(app.BintraySubject, app.BintrayRepo, app.BintrayPackage)
 	result.Messages = messages
@@ -75,7 +76,7 @@ func (u *MainBinaryUpdater) DownloadLatest(version string, channel string) (binI
 		msg:     fmt.Sprintf("detect version '%s' as latest for channel %s/%s", latestVersion, version, channel),
 		msgType: "ok"}
 
-	binInfo, _ = GetBinaryInfo(latestVersion, u.Messages)
+	binInfo, _ = GetVerifiedBinaryInfo(latestVersion, u.Messages)
 	if binInfo.HashVerified {
 		u.Messages <- ActionMessage{
 			comment: "no update needed",
@@ -84,26 +85,11 @@ func (u *MainBinaryUpdater) DownloadLatest(version string, channel string) (binI
 		return
 	}
 
-	// If no locale binary or hash not verified: download
-	err = DownloadVersion(latestVersion, u.Messages, u.BintrayClient)
-	if err != nil {
-		u.Messages <- ActionMessage{err: err}
-		return
-	}
-
-	// Check hash of the binary
-	u.Messages <- ActionMessage{msg: "Check hash...", debug: true}
-
-	binInfo, err = GetBinaryInfo(latestVersion, u.Messages)
+	// Download a release if no local latest binary or hash is not verified
+	binInfo, err = DownloadRelease(latestVersion, u.Messages, u.BintrayClient)
 	if err != nil {
 		u.Messages <- ActionMessage{
-			err: fmt.Errorf("verifying release error: %v", err)}
-		return
-	}
-	if !binInfo.HashVerified {
-		// Not match — ERROR and exit
-		u.Messages <- ActionMessage{
-			err: fmt.Errorf("hash for version %s is not verified!", latestVersion)}
+			err: fmt.Errorf("%s %s/%s: %v", app.BintrayPackage, version, channel, err)}
 		return
 	}
 
@@ -119,30 +105,44 @@ func (u *MainBinaryUpdater) DownloadLatest(version string, channel string) (binI
 // Checks for local versions and remote versions. If no remote version is available — use
 // local version.
 func (u *MainBinaryUpdater) GetLatestBinaryInfo(version string, channel string) (binInfo BinaryInfo) {
+	localLatestVersion := ""
+	localAvailableVersions := []string{}
+	localBinaryInfo, err := LocalLatestBinaryInfo(version, channel, u.Messages)
+	if err != nil {
+		u.Messages <- ActionMessage{
+			msg:     err.Error(),
+			msgType: "warn"}
+	} else {
+		localLatestVersion = localBinaryInfo.Version
+		localAvailableVersions = localBinaryInfo.AvailableVersions
+	}
+	// If remote is disabled, return localBinaryInfo immediately.
+	if !u.RemoteEnabled && localLatestVersion != "" {
+		u.Messages <- ActionMessage{
+			comment: "update is disabled",
+			msg:     fmt.Sprintf("%s %s/%s: update is disabled, use local latest %s", app.BintrayPackage, version, channel, localLatestVersion),
+			msgType: "ok"}
+		return localBinaryInfo
+	}
+
 	remoteBinInfo := BinaryInfo{}
 	remoteLatestVersion := ""
-	if u.RemoteEnabled && !u.RemoteDelayed {
+	if u.RemoteEnabled {
 		var err error
 		remoteBinInfo, err = RemoteLatestBinaryInfo(version, channel, u.Messages, u.BintrayClient)
 		if err != nil {
 			u.Messages <- ActionMessage{
 				msg:     err.Error(),
 				msgType: "warn"}
+		} else {
+			remoteLatestVersion = remoteBinInfo.Version
 		}
-		remoteLatestVersion = remoteBinInfo.Version
 	}
 
-	var llbiErr error
-	localLatestVersion := ""
-	localBinaryInfo, err := LocalLatestBinaryInfo(version, channel, u.Messages)
-	if err != nil {
-		llbiErr = err
-		u.Messages <- ActionMessage{
-			msg:     err.Error(),
-			msgType: "warn"}
-	} else {
-		localLatestVersion = localBinaryInfo.Version
-	}
+	// There are 3 ways now:
+	// - no remote version, no local — that is an error
+	// - no remote version or remote version is equal to local — use local version
+	// - remote version is not equal to local — download new release and use it
 
 	// no remote, no local — exit with error
 	if remoteLatestVersion == "" && localLatestVersion == "" {
@@ -150,14 +150,14 @@ func (u *MainBinaryUpdater) GetLatestBinaryInfo(version string, channel string) 
 			msg:     fmt.Sprintf("Cannot determine latest version for %s/%s neither from bintray package '%s' nor from local storage %s", version, channel, app.BintrayPackage, app.StorageDir),
 			msgType: "fail",
 		}
-		if !u.RemoteEnabled || u.RemoteDelayed {
+		if !u.RemoteEnabled {
 			u.Messages <- ActionMessage{
 				msg:     fmt.Sprintf("Auto update of `%s` is disabled or delayed. Try `multiwerf update %s %s` command.", app.BintrayPackage, version, channel),
 				msgType: "warn",
 			}
 		}
 		// Show top 5 versions from remote or from local if remote is disabled
-		if len(remoteBinInfo.AvailableVersions) > 0 {
+		if u.RemoteEnabled && len(remoteBinInfo.AvailableVersions) > 0 {
 			latestAvailable := PickLatestVersions(version, remoteBinInfo.AvailableVersions, 5)
 			if len(latestAvailable) > 0 {
 				msg := strings.Join(latestAvailable, "\n")
@@ -171,7 +171,7 @@ func (u *MainBinaryUpdater) GetLatestBinaryInfo(version string, channel string) 
 				}
 			}
 		} else {
-			latestAvailable := PickLatestVersions(version, localBinaryInfo.AvailableVersions, 5)
+			latestAvailable := PickLatestVersions(version, localAvailableVersions, 5)
 			if len(latestAvailable) > 0 {
 				msg := strings.Join(latestAvailable, "\n")
 				u.Messages <- ActionMessage{
@@ -190,85 +190,63 @@ func (u *MainBinaryUpdater) GetLatestBinaryInfo(version string, channel string) 
 		return
 	}
 
-	// has local and no remote or local is equal to remote — no update needed, stay at local version
+	// remote is disabled or error or remote version is same as local latest version. No update needed, stay at local version.
 	if localLatestVersion != "" {
-		if (remoteLatestVersion == "" || localLatestVersion == remoteLatestVersion) && localBinaryInfo.HashVerified {
-			if localBinaryInfo.BinaryPath == "" {
-				u.Messages <- ActionMessage{
-					err: fmt.Errorf("BUG: empty path. Please, report: rlv=[%v] llv=[%v] v=[%v] av=[%+v] hv=[%v] ver=[%v] ch=[%v] llbierr=[%v]",
-						remoteLatestVersion,
-						localLatestVersion,
-						localBinaryInfo.Version,
-						localBinaryInfo.AvailableVersions,
-						localBinaryInfo.HashVerified,
-						version,
-						channel,
-						llbiErr)}
-
-			}
+		if remoteLatestVersion == "" || remoteLatestVersion == localLatestVersion {
 			u.Messages <- ActionMessage{
 				comment: "no update needed",
-				msg:     fmt.Sprintf("%s %s/%s stays at %s", app.BintrayPackage, version, channel, localLatestVersion),
+				msg:     fmt.Sprintf("%s %s/%s: no update needed, use local latest %s", app.BintrayPackage, version, channel, localLatestVersion),
 				msgType: "ok"}
 			return localBinaryInfo
 		}
-		if remoteLatestVersion == "" && !localBinaryInfo.HashVerified {
-			u.Messages <- ActionMessage{
-				err: fmt.Errorf("Cannot determine latest version from bintray package '%s' and local latest binary '%s' is corrupted", app.BintrayPackage, localLatestVersion),
-			}
-			return
-		}
 	}
 
-	// localVersion is "" or localVersion is not equal to remoteVersion or local hash is not verified
+	// remote returns valid latest version not equal to local, update is needed.
 	if remoteLatestVersion != "" {
 		u.Messages <- ActionMessage{
 			msg:     fmt.Sprintf("Detect version '%s' as latest for channel %s/%s", remoteLatestVersion, version, channel),
 			msgType: "ok"}
 
-		// Download
-		err = DownloadVersion(remoteLatestVersion, u.Messages, u.BintrayClient)
+		// Download and verify release files
+		binInfo, err = DownloadRelease(remoteLatestVersion, u.Messages, u.BintrayClient)
 		if err != nil {
-			u.Messages <- ActionMessage{err: err}
-			return
-		}
-
-		// Check hash of the binary
-		u.Messages <- ActionMessage{msg: "Check hash...", debug: true}
-
-		newBinInfo, err := GetBinaryInfo(remoteLatestVersion, u.Messages)
-		if err != nil {
-			u.Messages <- ActionMessage{
-				err: fmt.Errorf("verifying release error: %v", err)}
-			return
-		}
-		if !newBinInfo.HashVerified {
-			// Not match — ERROR and exit
-			u.Messages <- ActionMessage{
-				err: fmt.Errorf("hash for version %s is not verified!", remoteLatestVersion)}
-			return
+			if localLatestVersion == "" {
+				u.Messages <- ActionMessage{
+					msg:     fmt.Sprintf("%s %s/%s: no local version found and download release %s failed: %v", app.BintrayPackage, version, channel, remoteLatestVersion, err),
+					msgType: "fail",
+				}
+				u.Messages <- ActionMessage{
+					err: fmt.Errorf("")}
+				return
+			} else {
+				u.Messages <- ActionMessage{
+					comment: fmt.Sprintf("download release %s failed", remoteLatestVersion),
+					msg:     fmt.Sprintf("Download %s is failed: %v", remoteLatestVersion, err),
+					msgType: "fail"}
+				u.Messages <- ActionMessage{
+					comment: fmt.Sprintf("use local latest version %s", localLatestVersion),
+					msg:     fmt.Sprintf("%s %s/%s: use local latest %s", app.BintrayPackage, version, channel, localLatestVersion),
+					msgType: "ok"}
+				return localBinaryInfo
+			}
 		}
 
 		u.Messages <- ActionMessage{
 			comment: fmt.Sprintf("# update %s success", app.BintrayPackage),
-			msg:     fmt.Sprintf("%s %s/%s updated to %s", app.BintrayPackage, version, channel, remoteLatestVersion),
+			msg:     fmt.Sprintf("%s %s/%s: update successful, use %s", app.BintrayPackage, version, channel, remoteLatestVersion),
 			msgType: "ok"}
-		return newBinInfo
+		return binInfo
 	}
 
 	// It's a bug if reached!
 	u.Messages <- ActionMessage{
-		err: fmt.Errorf("BUG: %s %s/%s detect remote version as '%s' and local '%s' but no action is performed.", app.BintrayPackage, version, channel, remoteLatestVersion, localLatestVersion),
+		err: fmt.Errorf("BUG: %s %s/%s: detect remote version as '%s' and local '%s' but no action is performed.", app.BintrayPackage, version, channel, remoteLatestVersion, localLatestVersion),
 	}
 	return
 }
 
 func (u *MainBinaryUpdater) SetRemoteEnabled(enabled bool) {
 	u.RemoteEnabled = enabled
-}
-
-func (u *MainBinaryUpdater) SetRemoteDelayed(delayed bool) {
-	u.RemoteDelayed = delayed
 }
 
 // Get local latest for version/channel
@@ -282,7 +260,10 @@ func (u *MainBinaryUpdater) SetRemoteDelayed(delayed bool) {
 // LocalLatestBinaryInfo returns BinaryInfo for latest locally available version
 //
 // 1. find version dirs in ~/.multiwerf
-// 2. find latest version for channel and verify a hash for that binary
+// 2. find latest version for channel
+// 3. check if binary exists in directory with version
+//
+// Note that this function doesn't verify a file hash
 func LocalLatestBinaryInfo(version string, channel string, messages chan ActionMessage) (binInfo BinaryInfo, err error) {
 
 	// create list of directories that names look like a semver
@@ -303,7 +284,7 @@ func LocalLatestBinaryInfo(version string, channel string, messages chan ActionM
 		return
 	}
 
-	exactBinInfo, err := GetBinaryInfo(latestVersion, messages)
+	exactBinInfo, err := GetLocalReleaseInfo(latestVersion, messages)
 	if err != nil {
 		return
 	}
@@ -361,10 +342,10 @@ func FindSemverDirs(path string) ([]string, string, error) {
 	return subDirs, warn, nil
 }
 
-// GetBinaryInfo return BinaryInfo object for binary with exact version if it is
+// GetVerifiedBinaryInfo return BinaryInfo object for binary with exact version if it is
 // stored in MultiwerfStorageDir. Empty object is returned if no binary found.
 // Hash of binary is verified with SHA256SUMS files.
-func GetBinaryInfo(version string, messages chan ActionMessage) (binInfo BinaryInfo, err error) {
+func GetVerifiedBinaryInfo(version string, messages chan ActionMessage) (binInfo BinaryInfo, err error) {
 	binInfo = BinaryInfo{}
 
 	// Verify hash for found version
@@ -376,6 +357,14 @@ func GetBinaryInfo(version string, messages chan ActionMessage) (binInfo BinaryI
 
 	binInfo.Version = version
 	binInfo.BinaryPath = filepath.Join(dstPath, files["program"])
+
+	exist, err := IsReleaseFilesExist(dstPath, files)
+	if err != nil {
+		return
+	}
+	if !exist {
+		return binInfo, fmt.Errorf("Release directory for %s is corrupted", version)
+	}
 
 	// check hash of local binary
 	match, err := VerifyReleaseFileHash(dstPath, files["hash"], files["program"])
@@ -391,11 +380,40 @@ func GetBinaryInfo(version string, messages chan ActionMessage) (binInfo BinaryI
 	return
 }
 
+// GetLocalReleaseInfo return BinaryInfo object for binary with exact version if it is
+// stored in MultiwerfStorageDir. Empty object is returned if no binary found.
+// Hash of binary is NOT verified with SHA256SUMS files.
+func GetLocalReleaseInfo(version string, messages chan ActionMessage) (binInfo BinaryInfo, err error) {
+	binInfo = BinaryInfo{}
+
+	dstPath := filepath.Join(MultiwerfStorageDir, version)
+	files := ReleaseFiles(app.BintrayPackage, version, app.OsArch)
+	messages <- ActionMessage{
+		msg:   fmt.Sprintf("dstPath is '%s', files: %+v", dstPath, files),
+		debug: true}
+
+	exist, err := IsReleaseFilesExist(dstPath, files)
+
+	if err != nil {
+		return
+	}
+
+	if !exist {
+		return binInfo, fmt.Errorf("Release directory for %s is corrupted", version)
+	}
+
+	binInfo.Version = version
+	binInfo.BinaryPath = filepath.Join(dstPath, files["program"])
+	// binInfo.HashVerified = true
+
+	return
+}
+
 // RemoteLatestBinaryInfo searches for a latest available version in bintray
 func RemoteLatestBinaryInfo(version string, channel string, messages chan ActionMessage, btClient bintray.BintrayClient) (binInfo BinaryInfo, err error) {
 	binInfo = BinaryInfo{}
 
-	pkgInfo, err := btClient.GetPackage()
+	pkgInfo, err := btClient.GetPackageInfo()
 	if err != nil {
 		err = fmt.Errorf("Get info for package '%s' error: %v", app.BintrayPackage, err)
 		return
@@ -431,7 +449,7 @@ func RemoteLatestChannelsReleases(version string, messages chan ActionMessage, b
 	orderedReleases = make([]string, 0)
 	releases = make(map[string][]string, 0)
 
-	pkgInfo, err := btClient.GetPackage()
+	pkgInfo, err := btClient.GetPackageInfo()
 	if err != nil {
 		err = fmt.Errorf("Get info for package '%s' error: %v", app.BintrayPackage, err)
 		return
@@ -475,23 +493,59 @@ func RemoteLatestChannelsReleases(version string, messages chan ActionMessage, b
 	return
 }
 
-func DownloadVersion(version string, messages chan ActionMessage, btClient bintray.BintrayClient) (err error) {
-	// Verify hash for found version
+// DownloadRelease download all files for release and verify them.
+// If files are good, then create version directory and move files there
+func DownloadRelease(version string, messages chan ActionMessage, btClient bintray.BintrayClient) (binInfo BinaryInfo, err error) {
+	rndStr := util.RndDigitsStr(5)
+	tmpDir := filepath.Join(MultiwerfStorageDir, fmt.Sprintf("download-%s-%s", version, rndStr))
 	dstPath := filepath.Join(MultiwerfStorageDir, version)
 	files := ReleaseFiles(app.BintrayPackage, version, app.OsArch)
 
-	messages <- ActionMessage{msg: "Start downloading", debug: true}
+	messages <- ActionMessage{msg: fmt.Sprintf("Start downloading release %s", version), debug: true}
 
-	err = btClient.DownloadFiles(version, dstPath, files)
+	removeAll := func(prevErr error) (err error) {
+		err = os.RemoveAll(tmpDir)
+		if err != nil {
+			if prevErr != nil {
+				return fmt.Errorf("%v, remove %s dir failed: %v", prevErr, tmpDir, err)
+			} else {
+				return fmt.Errorf("remove %s dir failed: %v", tmpDir, err)
+			}
+		}
+		return prevErr
+	}
+
+	err = btClient.DownloadFiles(version, tmpDir, files)
 	if err != nil {
-		return err
+		return binInfo, removeAll(err)
 	}
 
 	// chmod +x for files["program"]
-	err = os.Chmod(filepath.Join(dstPath, files["program"]), 0755)
+	err = os.Chmod(filepath.Join(tmpDir, files["program"]), 0755)
 	if err != nil {
-		return fmt.Errorf("chmod 755 failed for %s: %v", files["program"], err)
+		return binInfo, removeAll(fmt.Errorf("chmod 755 failed for %s: %v", files["program"], err))
 	}
 
-	return nil
+	// check hash of local binary
+	match, err := VerifyReleaseFileHash(tmpDir, files["hash"], files["program"])
+	if err != nil {
+		messages <- ActionMessage{
+			msg:   fmt.Sprintf("verifying release %s error: %v", version, err),
+			debug: true}
+		return binInfo, removeAll(err)
+	}
+
+	if match {
+		err = os.Rename(tmpDir, dstPath)
+		if err != nil {
+			return binInfo, removeAll(fmt.Errorf("rename tmp dir failed: %v", err))
+		} else {
+			binInfo.BinaryPath = filepath.Join(dstPath, files["program"])
+			binInfo.Version = version
+			binInfo.HashVerified = true
+			return binInfo, nil
+		}
+	}
+
+	return
 }

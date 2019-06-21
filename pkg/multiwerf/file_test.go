@@ -25,6 +25,6 @@ func Test_VerifyReleaseFileHash(t *testing.T) {
 	assert.True(t, verified)
 
 	verified, err = VerifyReleaseFileHash("testdata", "SHA256SUMS", "non-existent")
-	assert.NoError(t, err)
+	assert.Error(t, err)
 	assert.False(t, verified)
 }

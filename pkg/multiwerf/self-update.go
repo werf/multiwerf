@@ -43,7 +43,7 @@ func SelfUpdate(messages chan ActionMessage) string {
 
 	btClient := bintray.NewBintrayClient(app.SelfBintraySubject, app.SelfBintrayRepo, app.SelfBintrayPackage)
 
-	pkgInfo, err := btClient.GetPackage()
+	pkgInfo, err := btClient.GetPackageInfo()
 	if err != nil {
 		messages <- ActionMessage{
 			comment: "self update error",

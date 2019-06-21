@@ -45,8 +45,9 @@ type ActionMessage struct {
 func Use(version string, channel string, forceRemoteCheck bool, args []string) (err error) {
 	messages := make(chan ActionMessage, 0)
 	script := output.NewScript()
+	printer := script.Printer
 
-	err = SetupVersionAndStorageDir(version, script.Printer)
+	err = SetupVersionAndStorageDir(version, printer)
 	if err != nil {
 		return nil
 	}
@@ -56,30 +57,83 @@ func Use(version string, channel string, forceRemoteCheck bool, args []string) (
 		return nil
 	}
 
-	err = PerformSelfUpdate(script.Printer)
+	err = PerformSelfUpdate(printer)
 	if err != nil {
 		return nil
 	}
 
-	binUpdater := NewBinaryUpdater(messages)
-
-	// Check for delay of werf update
-	updateDelay := UpdateDelay{
-		Filename: filepath.Join(MultiwerfStorageDir, fmt.Sprintf("update-%s-%s-%s.delay", app.BintrayPackage, version, channel)),
-	}
-	if channel == "alpha" || channel == "beta" {
-		updateDelay.WithDelay(app.AlphaBetaUpdateDelay)
-	} else {
-		updateDelay.WithDelay(app.UpdateDelay)
-	}
-
+	// No lock is needed if update is disabled
+	// Do not check for delays if update is disabled
+	enableUpdate := false
 	if app.Update == "yes" {
-		binUpdater.SetRemoteEnabled(true)
-		if updateDelay.IsDelayPassed() {
-			updateDelay.UpdateTimestamp()
-			binUpdater.SetRemoteDelayed(false)
+		enableUpdate = true
+		lockName := fmt.Sprintf("update-ver-%s", version)
+
+		isAcquired, err := lock.TryLock(lockName, lock.TryLockOptions{ReadOnly: false})
+		defer func() { _ = lock.Unlock(lockName) }()
+		if err != nil {
+			PrintActionMessage(ActionMessage{
+				msg:     fmt.Sprintf("Cannot acquire a lock for update command"),
+				msgType: "fail",
+			}, printer)
+			return err
 		} else {
-			binUpdater.SetRemoteDelayed(!forceRemoteCheck)
+			if !isAcquired {
+				PrintActionMessage(ActionMessage{
+					msg:     fmt.Sprintf("Update for version %s is skipped: update is already performed by another process", version),
+					msgType: "warn",
+				}, printer)
+				enableUpdate = false
+			}
+		}
+	}
+
+	binUpdater := NewBinaryUpdater(messages)
+	binUpdater.SetRemoteEnabled(enableUpdate)
+
+	// If update is enabled, check and update delay files
+	if enableUpdate {
+		// Check if delay for channel is passed
+		updateDelay := UpdateDelay{
+			Filename: filepath.Join(MultiwerfStorageDir, fmt.Sprintf("update-%s-%s-%s.delay", app.BintrayPackage, version, channel)),
+		}
+		if channel == "alpha" || channel == "beta" {
+			updateDelay.WithDelay(app.AlphaBetaUpdateDelay)
+		} else {
+			updateDelay.WithDelay(app.UpdateDelay)
+		}
+		remains := updateDelay.TimeRemains()
+		if remains != "" {
+			// Delay is not passed
+			if forceRemoteCheck {
+				PrintActionMessage(ActionMessage{
+					msg:     fmt.Sprintf("Delayed werf update is forced by flag"),
+					msgType: "ok",
+				}, printer)
+				binUpdater.SetRemoteEnabled(true)
+			} else {
+				PrintActionMessage(ActionMessage{
+					msg:     fmt.Sprintf("Werf update is delayed: %s remains", remains),
+					msgType: "ok",
+				}, printer)
+				binUpdater.SetRemoteEnabled(false)
+			}
+		} else {
+			// If delay is passed, update delay for channel and for all less stable channels
+			for _, availableChannel := range AvailableChannels {
+				updateDelay := UpdateDelay{
+					Filename: filepath.Join(MultiwerfStorageDir, fmt.Sprintf("update-%s-%s-%s.delay", app.BintrayPackage, version, availableChannel)),
+				}
+				if availableChannel == "alpha" || availableChannel == "beta" {
+					updateDelay.WithDelay(app.AlphaBetaUpdateDelay)
+				} else {
+					updateDelay.WithDelay(app.UpdateDelay)
+				}
+				updateDelay.UpdateTimestamp()
+				if availableChannel == channel {
+					break
+				}
+			}
 		}
 	}
 
@@ -88,10 +142,11 @@ func Use(version string, channel string, forceRemoteCheck bool, args []string) (
 	var binaryInfo BinaryInfo
 	go func() {
 		binaryInfo = binUpdater.GetLatestBinaryInfo(version, channel)
+
 		// Stop PrintActionMessages after return from GetLatestBinaryInfo
 		messages <- ActionMessage{action: "exit"}
 	}()
-	err = PrintActionMessages(messages, script.Printer)
+	err = PrintActionMessages(messages, printer)
 	if err != nil {
 		return err
 	}
@@ -152,13 +207,18 @@ func Update(version string, channel string, args []string) (err error) {
 	// Update binary to latest version. Exit with error if remote communication failed.
 	binUpdater := NewBinaryUpdater(messages)
 	binUpdater.SetRemoteEnabled(true)
-	binUpdater.SetRemoteDelayed(false)
+
 	go func() {
 		binUpdater.DownloadLatest(version, channel)
-		// Update timestamp of delay of werf update. Also update timestamp for less stable channels.
+		// Update timestamp of delay for use command. Also update timestamp for less stable channels.
 		for _, availableChannel := range AvailableChannels {
 			updateDelay := UpdateDelay{
-				Filename: filepath.Join(MultiwerfStorageDir, fmt.Sprintf("update-%s-%s-%s.delay", app.BintrayPackage, version, channel)),
+				Filename: filepath.Join(MultiwerfStorageDir, fmt.Sprintf("update-%s-%s-%s.delay", app.BintrayPackage, version, availableChannel)),
+			}
+			if availableChannel == "alpha" || availableChannel == "beta" {
+				updateDelay.WithDelay(app.AlphaBetaUpdateDelay)
+			} else {
+				updateDelay.WithDelay(app.UpdateDelay)
 			}
 			updateDelay.UpdateTimestamp()
 			if channel == availableChannel {
@@ -266,7 +326,7 @@ func SetupVersionAndStorageDir(version string, printer output.Printer) (err erro
 			messages <- ActionMessage{err: err}
 		}
 
-		messages <- ActionMessage{msg: fmt.Sprintf("%s is a good major.minor, storage dir is %s", version, MultiwerfStorageDir), debug: true}
+		messages <- ActionMessage{msg: fmt.Sprintf("Debug output is enabled. %s is a good major.minor. Storage dir is %s", version, MultiwerfStorageDir), debug: true}
 		messages <- ActionMessage{action: "exit"}
 	}()
 	err = PrintActionMessages(messages, printer)
