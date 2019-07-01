@@ -84,7 +84,7 @@ get_latest_version() {
 }
 
 url_decode() {
-  echo -n "$1" | sed 's@+@ @g;s@%@\\x@g' | xargs -0 printf '%b'
+  echo "$1" | sed 's@+@ @g;s@%@\\x@g' | xargs -0 printf '%b'
 }
 
 PROGRAM="multiwerf"
@@ -118,7 +118,7 @@ then
 fi
 # emulate missing option --ignore-missing of sha256sum for alpine and centos
 grep "${MULTIWERF_BIN_NAME}" "${PROGRAM}.sha256sums" > "${PROGRAM}.sha256sum"
-if ! (sha256sum -c ${PROGRAM}.sha256sum) ; then
+if ! (shasum -a 256 -c ${PROGRAM}.sha256sum) ; then
   echo "${MULTIWERF_BIN_NAME} sha256 hash is not verified. Please download and check hash manually."
   rm -f "${PROGRAM}.sha256sums"
   rm -f "${PROGRAM}.sha256sum"
