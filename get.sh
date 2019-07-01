@@ -87,6 +87,28 @@ url_decode() {
   echo "$1" | sed 's@+@ @g;s@%@\\x@g' | xargs -0 printf '%b'
 }
 
+# emulate missing option --ignore-missing of sha256sum for alpine and centos
+# use shasum on MacOS
+sha256check() {
+  BIN_FILE=$1
+  SHA_FILE=$2
+  SHA_SUM="${SHA_FILE}.sum"
+
+  grep "$BIN_FILE" "$SHA_FILE" > "$SHA_SUM"
+
+  sha_cmd="sha256sum"
+  if [ "$OS" = "darwin" ] ; then
+    sha_cmd="shasum -a 256"
+  fi
+
+  if ! $sha_cmd -c "${SHA_SUM}" ; then
+    rm -f "${SHA_SUM}" "${SHA_FILE}" "${BIN_FILE}"
+    return 1
+  fi
+
+  rm -f "${SHA_SUM}" "${SHA_FILE}"
+}
+
 PROGRAM="multiwerf"
 OS="$(uname | tr '[:upper:]' '[:lower:]')"
 ARCH="$(uname -m)"
@@ -116,18 +138,13 @@ if ! download_file "${BINTRAY_DL_URL_BASE}/${VERSION}/SHA256SUMS" "${PROGRAM}.sh
 then
   exit 2
 fi
-# emulate missing option --ignore-missing of sha256sum for alpine and centos
-grep "${MULTIWERF_BIN_NAME}" "${PROGRAM}.sha256sums" > "${PROGRAM}.sha256sum"
-if ! (shasum -a 256 -c ${PROGRAM}.sha256sum) ; then
+
+if ! sha256check "${MULTIWERF_BIN_NAME}" "${PROGRAM}.sha256sumss"
+then
   echo "${MULTIWERF_BIN_NAME} sha256 hash is not verified. Please download and check hash manually."
-  rm -f "${PROGRAM}.sha256sums"
-  rm -f "${PROGRAM}.sha256sum"
-  rm -f "${MULTIWERF_BIN_NAME}"
   exit 1
 fi
 
-rm -f "${PROGRAM}.sha256sums"
-rm -f "${PROGRAM}.sha256sum"
 mv "${MULTIWERF_BIN_NAME}" "${PROGRAM}"
 chmod +x "${PROGRAM}"
 
