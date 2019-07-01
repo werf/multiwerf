@@ -139,7 +139,7 @@ then
   exit 2
 fi
 
-if ! sha256check "${MULTIWERF_BIN_NAME}" "${PROGRAM}.sha256sumss"
+if ! sha256check "${MULTIWERF_BIN_NAME}" "${PROGRAM}.sha256sums"
 then
   echo "${MULTIWERF_BIN_NAME} sha256 hash is not verified. Please download and check hash manually."
   exit 1
