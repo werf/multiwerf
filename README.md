@@ -42,9 +42,10 @@ v1.0.0-alpha.17
 ```
 
 This command will download the latest version of `werf` from `1.0/alpha` channel into ~/.multiwerf/<version> directory and setup a shell function to run this version.
+ 
+**NOTE** Specified channel sets *allowed* stability level. Multiwerf will download the latest available version which complies with the specified stability level. Note that `beta` version for example can be selected even if specified stability level is `alpha`, more details on channels [below](#channels).
 
 More on compatibility of werf channels in [werf README](https://github.com/flant/werf#backward-compatibility-promise).
-
 
 ## Commands
 
@@ -84,6 +85,22 @@ Werf binary releases are follow a [Semantic Versioning](https://semver.org/) and
 - METADATA parts are not sorted (by semver spec)
 
 ### Channels
+
+Channel is a way to specify stability level of werf version. There are following channels from the most stable to the least:
+
+ 1. [stable](#stable)
+ 2. [ea](#alpha-beta-rc-ea)
+ 3. [rc](#alpha-beta-rc-ea)
+ 4. [beta](#alpha-beta-rc-ea)
+ 5. [alpha](#alpha-beta-rc-ea)
+
+Multiwerf uses the most stable channel within latest available version that complies with the selected stability level. More stable channel version than selected stability level can be used by multiwerf if this version is the latest.
+
+For example selected stability level is `rc` (`multiwerf use 1.0 rc`):
+ - if `1.0.3-rc.10` and `1.0.4-ea.2` versions are avaiable, then `1.0.4-ea.2` will be selected because it is newer (`1.0.4` > `1.0.3`);
+ - if `1.0.4-ea.2` and `1.0.4-rc.4` versions are availble, then `1.0.4-ea.2` will be selected because it is more stable within the same version number `1.0.4`;
+ - if `1.0.4-ea.2` and `1.0.5-rc.1` versions are available, then `1.0.5-rc.1` will be selected because it is newer (`1.0.5` > `1.0.4`);
+etc.
 
 #### stable
 
