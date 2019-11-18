@@ -41,7 +41,7 @@ $ werf version
 v1.0.0-alpha.17
 ```
 
-**NOTE** If you are using bash versions before 4.0 (e.g. 3.2 is default for MacOS users), you must use `source /dev/stdin <<<"$(multiwerf use 1.0 beta)"` enstead of `source <(multiwerf use 1.0 beta)`
+**NOTE** If you are using bash versions before 4.0 (e.g. 3.2 is default for MacOS users), you must use `source /dev/stdin <<<"$(multiwerf use 1.0 beta)"` instead of `source <(multiwerf use 1.0 beta)`
 
 This command will download the latest version of `werf` from `1.0/alpha` channel into ~/.multiwerf/<version> directory and setup a shell function to run this version.
  
