@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/fatih/color"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/flant/multiwerf/pkg/app"
@@ -54,6 +55,10 @@ func main() {
 		Command("use", "Check for latest PATCH version available for channel and return a source script with alias function.").
 		Action(func(c *kingpin.ParseContext) error {
 			// TODO add special error to exit with 1 and not print error message with kingpin
+			if app.Shell == "powershell" {
+				color.NoColor = true
+			}
+
 			err := multiwerf.Use(versionStr, channelStr, forceRemoteCheck, []string{})
 			if err != nil {
 				os.Exit(1)
