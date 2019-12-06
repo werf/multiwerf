@@ -5,13 +5,13 @@ set -eo pipefail -o nounset
 OS_ARCHS=(
   "linux-amd64"
   "darwin-amd64"
-  #"windows-amd64"
+  "windows-amd64"
 )
 BUILD_PACKAGE=github.com/flant/multiwerf/cmd/multiwerf
 VERSION_VAR_NAME=github.com/flant/multiwerf/pkg/app.Version
 RELEASE_BUILD_DIR=release/build
 
-if [ -z "${1-}" ] ; then
+if [[ -z "${1-}" ]] ; then
   echo "Usage: $0 VERSION"
   echo
   exit 1
@@ -28,7 +28,7 @@ for os_arch in "${OS_ARCHS[@]}"; do
   os=${os_arch%-*}
   arch=${os_arch#*-}
   outputFile="$BUILD_DIR/${BASE_NAME}-${os}-${arch}-${VERSION}"
-  if [ "$os" == "windows" ] ; then
+  if [[ "$os" == "windows" ]] ; then
     outputFile="$outputFile.exe"
   fi
 

@@ -2,6 +2,7 @@ package output
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 )
 
@@ -75,7 +76,7 @@ if [[ $1 == "--path" ]] ; then echo '%[2]s' ; return ; fi
 
 # Please, source me: source <(multiwerf ...)
 
-`, name, path)
+`, name, filepath.ToSlash(path))
 	return nil
 }
 

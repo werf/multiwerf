@@ -2,6 +2,8 @@ package app
 
 import (
 	"os"
+	"runtime"
+	"strings"
 	"time"
 
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -19,7 +21,7 @@ var SelfBintrayPackage = "multiwerf"
 var BintraySubject = "flant"
 var BintrayRepo = "werf"
 var BintrayPackage = "werf"
-var OsArch = "linux-amd64"
+var OsArch = strings.Join([]string{runtime.GOOS, runtime.GOARCH}, "-")
 var StorageDir = "~/.multiwerf"
 
 var SelfUpdate = "yes"
