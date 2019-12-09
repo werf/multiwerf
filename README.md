@@ -44,7 +44,7 @@ v1.0.0-alpha.17
 
 This command will download the latest version of `werf` from `1.0/alpha` channel into ~/.multiwerf/<version> directory and setup a shell function to run this version.
  
-**NOTE** Specified channel sets *allowed* stability level. Multiwerf will download the latest available version which complies with the specified stability level. Note that `beta` version for example can be selected even if specified stability level is `alpha`, more details on channels [below](#channels).
+**NOTE** Specified channel sets *allowed* stability level. multiwerf will download the latest available version which complies with the specified stability level. Note that `beta` version for example can be selected even if specified stability level is `alpha`, more details on channels [below](#channels).
 
 More on compatibility of werf channels in [werf README](https://github.com/flant/werf#backward-compatibility-promise).
 
@@ -94,7 +94,7 @@ Channel is a way to specify stability level of werf version. There are following
  4. [beta](#alpha-beta-rc-ea)
  5. [alpha](#alpha-beta-rc-ea)
 
-Multiwerf uses the most stable channel within latest available version that complies with the selected stability level. More stable channel version than selected stability level can be used by multiwerf if this version is the latest.
+multiwerf uses the most stable channel within latest available version that complies with the selected stability level. More stable channel version than selected stability level can be used by multiwerf if this version is the latest.
 
 For example selected stability level is `rc` (`multiwerf use 1.0 rc`):
  - if `1.0.3-rc.10` and `1.0.4-ea.2` versions are avaiable, then `1.0.4-ea.2` will be selected because it is newer (`1.0.4` > `1.0.3`);
