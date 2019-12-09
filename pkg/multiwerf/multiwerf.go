@@ -113,7 +113,7 @@ func Use(version string, channel string, forceRemoteCheck bool, args []string) (
 				binUpdater.SetRemoteEnabled(true)
 			} else {
 				PrintActionMessage(ActionMessage{
-					msg:     fmt.Sprintf("Werf update is delayed: %s remains", remains),
+					msg:     fmt.Sprintf("werf update is delayed: %s remains", remains),
 					msgType: "ok",
 				}, printer)
 				binUpdater.SetRemoteEnabled(false)

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Multiwerf publisher utility
+# multiwerf publisher utility
 # Create github release and upload go binary as asset.
 #
 
@@ -189,7 +189,7 @@ github_create_release() {
   GHPAYLOAD=$(cat <<- JSON
 {
   "tag_name": "$GIT_TAG",
-  "name": "Multiwerf $VERSION",
+  "name": "multiwerf $VERSION",
   "body": $TAG_RELEASE_MESSAGE,
   "draft": false,
   "prerelease": $prerelease
