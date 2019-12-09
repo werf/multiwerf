@@ -10,10 +10,9 @@ Self-updatable version manager of [werf](https://github.com/flant/werf) binaries
 
 - [Quick start](#quick-start)
 - [Commands](#commands)
-- [Werf versioning](#werf-versioning)
+- [werf versioning](#werf-versioning)
 - [Installation and self-update](#installation-and-self-update)
 - [License](#license)
-
 
 ## Quick start
  
@@ -72,10 +71,9 @@ Binaries are downloaded to a directory `$HOME/.multiwerf/VERSION/`. For example,
 
 `use` and `update` commands are check for latest version of multiwerf and self update a multiwerf binary if needed. This can be disabled with `--self-update=no` flag. 
 
+## werf versioning
 
-## Werf versioning
-
-Werf binary releases are follow a [Semantic Versioning](https://semver.org/) and [Backward Compatibility Promise](https://github.com/flant/werf#backward-compatibility-promise), so `multiwerf` makes this assumptions:
+werf binary releases are follow a [Semantic Versioning](https://semver.org/) and [Backward Compatibility Promise](https://github.com/flant/werf#backward-compatibility-promise), so `multiwerf` makes this assumptions:
 
 - each werf release version has a form of `MAJOR.MINOR.PATCH-PRERELEASE+METADATA`
 - PATCH can be increased directly (1.0.1 → 1.0.2)
@@ -178,7 +176,7 @@ Checking for latest versions of multiwerf and checking for specific version and 
 
 Self update is delayed to check for new multiwerf version not earlier than 24 hours after the last check for `use` and `update` command.
 
-Werf updates are delayed to check for latest version not earlier than 1 hour after the last check for `use` command. 
+werf updates are delayed to check for latest version not earlier than 1 hour after the last check for `use` command. 
 
 ### Running multiwerf in CI
 
