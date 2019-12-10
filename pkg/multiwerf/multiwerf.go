@@ -153,7 +153,11 @@ func Use(version string, channel string, forceRemoteCheck bool, args []string) (
 		return err
 	}
 
-	return script.PrintBinaryAliasFunction(app.BintrayPackage, binaryInfo.BinaryPath)
+	if app.Shell == "powershell" {
+		return script.PrintBinaryAliasFunctionForPowerShell(app.BintrayPackage, binaryInfo.BinaryPath)
+	} else {
+		return script.PrintDefaultBinaryAliasFunction(app.BintrayPackage, binaryInfo.BinaryPath)
+	}
 }
 
 // Update checks for the latest available version and download it to StorageDir

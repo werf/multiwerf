@@ -23,6 +23,7 @@ var BintrayRepo = "werf"
 var BintrayPackage = "werf"
 var OsArch = strings.Join([]string{runtime.GOOS, runtime.GOARCH}, "-")
 var StorageDir = "~/.multiwerf"
+var Shell = "default"
 
 var SelfUpdate = "yes"
 var Update = "yes"
@@ -63,6 +64,11 @@ func SetupGlobalSettings(kpApp *kingpin.Application) {
 		Envar("MULTIWERF_OS_ARCH").
 		Default(OsArch).
 		StringVar(&OsArch)
+
+	kpApp.Flag("shell", "set to 'powershell' or use default behaviour that is compatible with sh, bash and zsh").
+		Envar("MULTIWERF_SHELL").
+		Default(Shell).
+		StringVar(&Shell)
 
 	kpApp.Flag("storage-dir", "directory for store binaries (~/.multiwerf)").
 		Hidden().

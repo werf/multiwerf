@@ -66,16 +66,16 @@ func NewScript() *Script {
 	}
 }
 
-// PrintBinaryAliasFunction prints a shell script with alias function
+// PrintDefaultBinaryAliasFunction prints a shell script with alias function
 // TODO Add script block to prevent from loading not in bash/zsh shells (as in rvm script)
-func (s *Script) PrintBinaryAliasFunction(name, path string) error {
+func (s *Script) PrintDefaultBinaryAliasFunction(name, path string) error {
 	fmt.Printf(`#
 
-# Function with path to chosen version of %s binary.
+# Function with a path to the chosen version of %s binary.
 %[1]s() {
   case "$1" in
     --path) echo '%[2]s';;
-	*) %[2]s "$@";;
+         *) %[2]s "$@";;
   esac
 }
 
@@ -89,7 +89,21 @@ func (s *Script) PrintBinaryAliasFunction(name, path string) error {
 	return nil
 }
 
-func EscapeSingleQuotes(s string) string {
-	re := regexp.MustCompile(`'`)
-	return re.ReplaceAllString(s, "'\"'\"'")
+// PrintBinaryAliasFunctionForPowerShell prints a powershell script with alias function
+func (s *Script) PrintBinaryAliasFunctionForPowerShell(name, path string) error {
+	fmt.Printf(`#
+
+# Function with a path to the chosen version of %s binary.
+function %[1]s {
+  & %[2]s "$args"
+}
+
+# To start using werf source this output:
+# * create temporary file: $tmpfile = [IO.Path]::GetTempFileName() | Rename-Item -NewName { $_ -replace 'tmp$', 'ps1' } –PassThru
+# * save command output:   multiwerf use 1.0 alpha > $tmpfile
+# * source it:             . $tmpfile
+
+# To remove function use the following command: Remove-Item -Path Function:%[1]s
+`, name, filepath.ToSlash(path), strings.Join(os.Args[1:], " "))
+	return nil
 }
