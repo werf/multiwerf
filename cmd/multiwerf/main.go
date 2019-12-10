@@ -81,7 +81,6 @@ func main() {
 		Command("get-use-script-path", ".").
 		Action(func(c *kingpin.ParseContext) error {
 			err := multiwerf.GetUseScriptPath(versionStr, channelStr)
-			fmt.Println(err)
 			if err != nil {
 				os.Exit(1)
 			}
