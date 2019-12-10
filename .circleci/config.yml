@@ -4,13 +4,12 @@ version: 2.1
 executors:
   golang:
     docker:
-    - image: circleci/golang:1.10
+    - image: circleci/golang:1.13
 
 jobs:
   test:
     executor: golang
 
-    working_directory: /go/src/github.com/flant/multiwerf
     steps:
       - checkout
       # specify any bash command here prefixed with `run: `
