@@ -2,7 +2,10 @@ package output
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
+	"strings"
 )
 
 type ScriptPrint struct {
@@ -65,17 +68,22 @@ func NewScript() *Script {
 // TODO Add script block to prevent from loading not in bash/zsh shells (as in rvm script)
 func (s *Script) PrintBinaryAliasFunction(name, path string) error {
 	fmt.Printf(`#
+
 # Function with path to chosen version of %s binary.
-# To remove function use unset:
-# unset -f %[1]s
 %[1]s() {
-if [[ $1 == "--path" ]] ; then echo '%[2]s' ; return ; fi
-%[2]s "$@"
+  case "$1" in
+    --path) echo '%[2]s';;
+	*) %[2]s "$@";;
+  esac
 }
 
-# Please, source me: source <(multiwerf ...)
+# To start using werf source this output:
+# * Bourne shell (sh): tmpfile=$(mktemp) && multiwerf %[3]s > $tmpfile && . $tmpfile
+# * Bash (< 4.0):      source /dev/stdin <<<"$(multiwerf %[3]s)"
+# * Bash (>=4.0), zsh: source <(multiwerf %[3]s)
 
-`, name, path)
+# To remove function use the following command: unset -f %[1]s
+`, name, filepath.ToSlash(path), strings.Join(os.Args[1:], " "))
 	return nil
 }
 
