@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/fatih/color"
+
 	"github.com/flant/multiwerf/pkg/app"
 	"github.com/flant/multiwerf/pkg/lock"
 	"github.com/flant/multiwerf/pkg/output"
@@ -151,7 +153,11 @@ func Use(version string, channel string, forceRemoteCheck bool, args []string) (
 		return err
 	}
 
-	return script.PrintBinaryAliasFunction(app.BintrayPackage, binaryInfo.BinaryPath)
+	if app.Shell == "powershell" {
+		return script.PrintBinaryAliasFunctionForPowerShell(app.BintrayPackage, binaryInfo.BinaryPath)
+	} else {
+		return script.PrintDefaultBinaryAliasFunction(app.BintrayPackage, binaryInfo.BinaryPath)
+	}
 }
 
 // Update checks for the latest available version and download it to StorageDir
@@ -454,15 +460,16 @@ func PrintActionMessage(msg ActionMessage, printer output.Printer) {
 	}
 
 	if msg.msg != "" {
-		color := ""
+		var colorAttribute *color.Attribute
 		switch msg.msgType {
 		case "ok":
-			color = "green"
+			colorAttribute = &output.GreenColor
 		case "warn":
-			color = "yellow"
+			colorAttribute = &output.YellowColor
 		case "fail":
-			color = "red"
+			colorAttribute = &output.RedColor
 		}
-		printer.Message(msg.msg, color, msg.comment)
+
+		printer.Message(msg.msg, colorAttribute, msg.comment)
 	}
 }
