@@ -3,7 +3,10 @@ package multiwerf
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/fatih/color"
@@ -157,6 +160,49 @@ func Use(version string, channel string, forceRemoteCheck bool, args []string) (
 		return script.PrintBinaryAliasFunctionForPowerShell(app.BintrayPackage, binaryInfo.BinaryPath)
 	} else {
 		return script.PrintDefaultBinaryAliasFunction(app.BintrayPackage, binaryInfo.BinaryPath)
+	}
+}
+
+func GetUseScriptPath(version string, channel string) (err error) {
+	var filename = "werf_source"
+	var filecontent string
+
+	if runtime.GOOS == "windows" {
+		var filenameExt string
+
+		switch app.Shell {
+		case "cmdexe":
+			filenameExt = "bat"
+			filecontent = fmt.Sprintf(`multiwerf update %[1]s %[2]s 
+FOR /F "tokens=*" %%g IN ('multiwerf get-binary-path %[1]s %[2]s') do (SET WERF_PATH=%%g)
+DOSKEY werf=%%WERF_PATH%% $*`, version, channel)
+		case "powershell":
+			filenameExt = "ps1"
+			filecontent = fmt.Sprintf(`multiwerf update %[1]s %[2]s 
+Invoke-Expression -Command "multiwerf get-binary-path %[1]s %[2]s" | Out-String -OutVariable WERF_PATH
+function werf { & $WERF_PATH $args }`, version, channel)
+		default:
+			panic("!!!")
+		}
+
+		filename += "." + filenameExt
+	} else {
+		filecontent = fmt.Sprintf(`multiwerf update %[1]s %[2]s 
+binPath="$(multiwerf get-binary-path %[1]s %[2]s)"
+alias werf=$binPath`, version, channel)
+	}
+
+	dstPath := filepath.Join(MultiwerfStorageDir, version, channel, filename)
+
+	if err := os.MkdirAll(filepath.Dir(dstPath), os.ModePerm); err != nil {
+		return err
+	}
+
+	if err := ioutil.WriteFile(dstPath, []byte(filecontent), os.ModePerm); err != nil {
+		return err
+	} else {
+		fmt.Println(dstPath)
+		return nil
 	}
 }
 

@@ -76,6 +76,26 @@ func main() {
 	useCmd.Flag("force-remote-check", "Force check of `werf' versions in a remote storage (bintray). Do not reset delay file.").
 		BoolVar(&forceRemoteCheck)
 
+	// multiwerf get-use-script-path
+	getUseScriptPathCmd := kpApp.
+		Command("get-use-script-path", ".").
+		Action(func(c *kingpin.ParseContext) error {
+			err := multiwerf.GetUseScriptPath(versionStr, channelStr)
+			fmt.Println(err)
+			if err != nil {
+				os.Exit(1)
+			}
+			return nil
+		})
+	getUseScriptPathCmd.Arg("MAJOR.MINOR", "Selector of a release series. Examples: 1.0, 1.3.").
+		HintOptions("1.0", "1.3").
+		Required().
+		StringVar(&versionStr)
+	getUseScriptPathCmd.Arg("CHANNEL", "Minimum acceptable level of stability. One of: alpha|beta|rc|ea|stable.").
+		HintOptions(multiwerf.AvailableChannels...).
+		Default("stable").
+		EnumVar(&channelStr, multiwerf.AvailableChannels...)
+
 	// multiwerf available-releases
 	releasesCmd := kpApp.
 		Command("available-releases", "Show available major.minor versions or available versions for each channel or exact version for major.minor and channel.").
