@@ -1,9 +1,14 @@
 package multiwerf
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/fatih/color"
@@ -44,24 +49,25 @@ type ActionMessage struct {
 
 // Use prints a shell script with alias to the latest binary version available for the channel
 // TODO make script more responsive: print messages immediately
-func Use(version string, channel string, forceRemoteCheck bool, args []string) (err error) {
+func Use(version string, channel string, forceRemoteCheck bool, shell string) (err error) {
 	messages := make(chan ActionMessage, 0)
 	script := output.NewScript()
 	printer := script.Printer
 
 	err = SetupVersionAndStorageDir(version, printer)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	err = lock.Init(MultiwerfStorageDir)
 	if err != nil {
-		return nil
+		printer.Error(err)
+		return err
 	}
 
 	err = PerformSelfUpdate(printer)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	// No lock is needed if update is disabled
@@ -153,11 +159,185 @@ func Use(version string, channel string, forceRemoteCheck bool, args []string) (
 		return err
 	}
 
-	if app.Shell == "powershell" {
+	switch shell {
+	case "powershell":
 		return script.PrintBinaryAliasFunctionForPowerShell(app.BintrayPackage, binaryInfo.BinaryPath)
-	} else {
+	case "default":
 		return script.PrintDefaultBinaryAliasFunction(app.BintrayPackage, binaryInfo.BinaryPath)
+	default:
+		panic(fmt.Sprintf("shell '%s' is not supported", shell))
 	}
+}
+
+// Get or create script and print path for the channel
+// Script has update command and alias to the latest binary version available for the channel
+// Compatible with specified shell
+func GetUseScriptPath(version, channel, shell string) (err error) {
+	printer := output.NewSilentPrint()
+	if err = SetupVersionAndStorageDir(version, printer); err != nil {
+		return err
+	}
+
+	backgroundUpdateLogPath := filepath.Join(MultiwerfStorageDir, "background_update.log")
+
+	var filename = "werf_source"
+	var filenameExt string
+	var fileContent string
+
+	switch shell {
+	case "cmdexe":
+		filenameExt = "bat"
+		fileContent = fmt.Sprintf(`
+FOR /F "tokens=*" %%%%g IN ('multiwerf werf-path %[1]s %[2]s') do (SET WERF_PATH=%%%%g)
+
+IF %%ERRORLEVEL%% NEQ 0 (
+	multiwerf update %[1]s %[2]s 
+    FOR /F "tokens=*" %%%%g IN ('multiwerf werf-path %[1]s %[2]s') do (SET WERF_PATH=%%%%g)
+) ELSE (
+	START /B multiwerf update %[1]s %[2]s >%[3]s 2>&1
+)
+
+DOSKEY werf=%%WERF_PATH%% $*
+`, version, channel, backgroundUpdateLogPath)
+	case "powershell":
+		filenameExt = "ps1"
+		fileContent = fmt.Sprintf(`
+if (Invoke-Expression -Command "multiwerf werf-path %[1]s %[2]s" | Out-String -OutVariable WERF_PATH) {
+	Start-Job { multiwerf update %[1]s %[2]s >%[3]s 2>&1 }
+} else {
+	multiwerf update %[1]s %[2]s
+	Invoke-Expression -Command "multiwerf werf-path %[1]s %[2]s" | Out-String -OutVariable WERF_PATH
+}
+
+function werf { & $WERF_PATH.Trim() $args }
+`, version, channel, backgroundUpdateLogPath)
+	default:
+		if runtime.GOOS == "windows" {
+			fileContent = fmt.Sprintf(`
+WERF_PATH=$(multiwerf werf-path %[1]s %[2]s)
+
+if [ $? -ne 0 ]
+then
+    multiwerf update %[1]s %[2]s
+    WERF_PATH=$(multiwerf werf-path %[1]s %[2]s)
+else
+    (multiwerf update %[1]s %[2]s >%[3]s 2>&1 </dev/null &)
+fi
+
+WERF_PATH=$(echo -n $WERF_PATH | sed 's/\\/\//g')
+alias werf=$WERF_PATH
+`, version, channel, backgroundUpdateLogPath)
+		} else {
+			fileContent = fmt.Sprintf(`
+WERF_PATH=$(multiwerf werf-path %[1]s %[2]s)
+
+if [ $? -ne 0 ]
+then
+    multiwerf update %[1]s %[2]s
+    WERF_PATH=$(multiwerf werf-path %[1]s %[2]s)
+else
+    (setsid multiwerf update %[1]s %[2]s >%[3]s 2>&1 </dev/null &)
+fi
+
+alias werf=$WERF_PATH
+`, version, channel, backgroundUpdateLogPath)
+		}
+	}
+
+	if filenameExt != "" {
+		filename = strings.Join([]string{filename, filenameExt}, ".")
+	}
+
+	fileContentBytes := []byte(fmt.Sprintln(strings.TrimSpace(fileContent)))
+	dstPath := filepath.Join(MultiwerfStorageDir, "scripts", strings.Join([]string{version, channel}, "-"), filename)
+	tmpDstPath := dstPath + ".tmp"
+
+	if exist, err := FileExists(filepath.Dir(dstPath), filename); err != nil {
+		printer.Error(err)
+		return err
+	} else if exist {
+		currentFileContentBytes, err := ioutil.ReadFile(dstPath)
+		if err != nil {
+			printer.Error(err)
+			return err
+		}
+
+		if bytes.Equal(currentFileContentBytes, fileContentBytes) {
+			fmt.Println(dstPath)
+			return nil
+		}
+	}
+
+	if err := os.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
+		printer.Error(err)
+		return err
+	}
+
+	if err := ioutil.WriteFile(tmpDstPath, fileContentBytes, os.ModePerm); err != nil {
+		printer.Error(err)
+		return err
+	}
+
+	err = os.Rename(tmpDstPath, dstPath)
+	if err != nil {
+		err := fmt.Errorf("rename tmp file failed: %v", err)
+		printer.Error(err)
+		return err
+	}
+
+	fmt.Println(dstPath)
+	return nil
+}
+
+// Print path to the latest binary version available for the channel locally
+func WerfPath(version string, channel string) (err error) {
+	printer := output.NewSilentPrint()
+
+	binaryPath, err := latestLocalBinaryPath(printer, version, channel)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(binaryPath)
+
+	return nil
+}
+
+// Exec latest binary version available for the channel locally with passed args
+func WerfExec(version string, channel string, args []string) (err error) {
+	printer := output.NewSilentPrint()
+
+	binaryPath, err := latestLocalBinaryPath(printer, version, channel)
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command(binaryPath, args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+
+	return cmd.Run()
+}
+
+func latestLocalBinaryPath(printer output.Printer, version string, channel string) (string, error) {
+	if err := SetupVersionAndStorageDir(version, printer); err != nil {
+		return "", err
+	}
+
+	var binaryPath string
+	messages := make(chan ActionMessage, 0)
+	go func() {
+		binUpdater := NewBinaryUpdater(messages)
+		binUpdater.SetRemoteEnabled(false)
+		binInfo := binUpdater.GetLatestBinaryInfo(version, channel)
+		binaryPath = binInfo.BinaryPath
+
+		messages <- ActionMessage{action: "exit"}
+	}()
+
+	err := PrintActionMessages(messages, printer)
+	return binaryPath, err
 }
 
 // Update checks for the latest available version and download it to StorageDir
@@ -177,17 +357,18 @@ func Update(version string, channel string, args []string) (err error) {
 
 	err = SetupVersionAndStorageDir(version, printer)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	err = lock.Init(MultiwerfStorageDir)
 	if err != nil {
-		return nil
+		printer.Error(err)
+		return err
 	}
 
 	err = PerformSelfUpdate(printer)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	lockName := fmt.Sprintf("update-ver-%s", version)
