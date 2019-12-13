@@ -191,10 +191,10 @@ func GetUseScriptPath(version, channel, shell string) (err error) {
 FOR /F "tokens=*" %%%%g IN ('multiwerf werf-path %[1]s %[2]s') do (SET WERF_PATH=%%%%g)
 
 IF %%ERRORLEVEL%% NEQ 0 (
-	multiwerf update %[1]s %[2]s 
+    multiwerf update %[1]s %[2]s 
     FOR /F "tokens=*" %%%%g IN ('multiwerf werf-path %[1]s %[2]s') do (SET WERF_PATH=%%%%g)
 ) ELSE (
-	START /B multiwerf update %[1]s %[2]s >%[3]s 2>&1
+    START /B multiwerf update %[1]s %[2]s >%[3]s 2>&1
 )
 
 DOSKEY werf=%%WERF_PATH%% $*
@@ -203,10 +203,10 @@ DOSKEY werf=%%WERF_PATH%% $*
 		filenameExt = "ps1"
 		fileContent = fmt.Sprintf(`
 if (Invoke-Expression -Command "multiwerf werf-path %[1]s %[2]s" | Out-String -OutVariable WERF_PATH) {
-	Start-Job { multiwerf update %[1]s %[2]s >%[3]s 2>&1 }
+    Start-Job { multiwerf update %[1]s %[2]s >%[3]s 2>&1 }
 } else {
-	multiwerf update %[1]s %[2]s
-	Invoke-Expression -Command "multiwerf werf-path %[1]s %[2]s" | Out-String -OutVariable WERF_PATH
+    multiwerf update %[1]s %[2]s
+    Invoke-Expression -Command "multiwerf werf-path %[1]s %[2]s" | Out-String -OutVariable WERF_PATH
 }
 
 function werf { & $WERF_PATH.Trim() $args }

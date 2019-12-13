@@ -3,202 +3,173 @@
 [![Download from Github](https://img.shields.io/github/tag-date/flant/multiwerf.svg?logo=github&label=latest)](https://github.com/flant/multiwerf/releases/latest)
 [![Download from Bintray mirror](https://api.bintray.com/packages/flant/multiwerf/multiwerf/images/download.svg)](https://bintray.com/flant/multiwerf/multiwerf/_latestVersion)
 
-# multiwerf
-Self-updatable version manager of [werf](https://github.com/flant/werf) binaries with awareness of release channels.
+**multiwerf** is a self-updatable [werf](https://github.com/flant/werf) manager with the awareness of release channels, allowed stability levels. multiwerf follows werf [Backward Compatibility Promise](https://github.com/flant/werf#backward-compatibility-promise).
 
-### Contents
+General usage of multiwerf is managing werf binaries and providing the actual binary for `MAJOR.MINOR` version and `CHANNEL` in the shell session.
 
-- [Quick start](#quick-start)
+## Contents
+
+- [Installation](#installation)
+- [Common Usage](#common-usage)
 - [Commands](#commands)
-- [werf versioning](#werf-versioning)
-- [Installation and self-update](#installation-and-self-update)
+- [Self-update](#self-update)
+- [Offline Usage](#offline-usage)
 - [License](#license)
 
-## Quick start
- 
-### Install
+## Installation
 
-The simplest way is to get latest version of multiwerf to current directory with get.sh script:
+### Unix shell (sh, bash, zsh)
 
-```
+```bash
+# add ~/bin into PATH
+export PATH=$PATH:$HOME/bin
+echo 'export PATH=$PATH:$HOME/bin' >> ~/.bashrc
+
+# install multiwerf into ~/bin directory
+mkdir -p ~/bin
+cd ~/bin
 curl -L https://raw.githubusercontent.com/flant/multiwerf/master/get.sh | bash
 ```
 
-Also you can manually download a binary for your platform from [github releases](https://github.com/flant/multiwerf/releases) or from [bintray mirror](https://bintray.com/flant/multiwerf/multiwerf/_latestVersion).
+### Windows
 
-It is recommended to install multiwerf with enabled self updates as described in [Installation and update](#installation-and-update).
+Choose a release from [GitHub releases](https://github.com/flant/multiwerf/releases) or [bintray mirror](https://bintray.com/flant/multiwerf/multiwerf/_latestVersion) and use one of the following approaches with the chosen binary URL.  
 
-### Usage
+#### PowerShell
 
-General usage of `multiwerf` is to download a werf binary and setup a `werf` function for the shell.
+```shell
+$MULTIWERF_BIN_PATH = "C:\ProgramData\multiwerf\bin"
+mkdir $MULTIWERF_BIN_PATH
 
-```
-$ source <(multiwerf use 1.0 alpha)
-Detect version v1.0.0-alpha.17 as latest for channel 1.0/alpha
-werf 1.0/alpha updated to v1.0.0-alpha.17
-$ werf version
-v1.0.0-alpha.17
-```
+Invoke-WebRequest -Uri https://flant.bintray.com/multiwerf/v1.0.16/multiwerf-windows-amd64-v1.0.16.exe -OutFile $MULTIWERF_BIN_PATH\multiwerf.exe
 
-**NOTE** If you are using bash versions before 4.0 (e.g. 3.2 is default for MacOS users), you must use `source /dev/stdin <<<"$(multiwerf use 1.0 beta)"` instead of `source <(multiwerf use 1.0 beta)`
+[Environment]::SetEnvironmentVariable(
+    "Path",
+    [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::Machine) + "$MULTIWERF_BIN_PATH",
+    [EnvironmentVariableTarget]::Machine)
 
-This command will download the latest version of `werf` from `1.0/alpha` channel into ~/.multiwerf/<version> directory and setup a shell function to run this version.
- 
-**NOTE** Specified channel sets *allowed* stability level. multiwerf will download the latest available version which complies with the specified stability level. Note that `beta` version for example can be selected even if specified stability level is `alpha`, more details on channels [below](#channels).
-
-More on compatibility of werf channels in [werf README](https://github.com/flant/werf#backward-compatibility-promise).
-
-## Commands
-
-- `multiwerf use MAJOR.MINOR CHANNEL` — check for latest version in channel in MAJOR.MINOR branch and return a script for use with `source`
-- `multiwerf update MAJOR.MINOR CHANNEL` — update binary to the latest version of channel in MAJOR.MINOR branch
-
-First positional argument is in form of MAJOR.MINOR. CHANNEL is one of: alpha, beta, rc, ea, stable. More on this in [werf versioning](#werf-versioning).
-
-Binaries are downloaded to a directory `$HOME/.multiwerf/VERSION/`. For example, version `1.0.1-alpha.3` of `werf` binaries for user `gitlab-runner` will be stored as
-
-```
-/home/gitlab-runner/.multiwerf
-|-- 1.0.1-alpha.3
-|   |-- SHA256SUMS
-|   |-- SHA256SUMS.sig
-|   `-- werf-linux-amd64-1.0.1-alpha.3
-|
-...
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
 ```
 
-`use` command also have `--update=no` flag to prevent version checking and use only locally available versions from ~/.multiwerf.
+#### cmd.exe (run as Administrator)
 
-`use` and `update` commands are check for latest version of multiwerf and self update a multiwerf binary if needed. This can be disabled with `--self-update=no` flag. 
+```shell
+set MULTIWERF_BIN_PATH="C:\ProgramData\multiwerf\bin"
+mkdir %MULTIWERF_BIN_PATH%
+bitsadmin.exe /transfer "multiwerf" https://flant.bintray.com/multiwerf/v1.0.16/multiwerf-windows-amd64-v1.0.16.exe %MULTIWERF_BIN_PATH%\multiwerf.exe
+setx /M PATH "%PATH%;%MULTIWERF_BIN_PATH%"
 
-## werf versioning
-
-werf binary releases are follow a [Semantic Versioning](https://semver.org/) and [Backward Compatibility Promise](https://github.com/flant/werf#backward-compatibility-promise), so `multiwerf` makes this assumptions:
-
-- each werf release version has a form of `MAJOR.MINOR.PATCH-PRERELEASE+METADATA`
-- PATCH can be increased directly (1.0.1 → 1.0.2)
-- PATCH can be increased with prereleases (1.0.1 → 1.0.2-alpha → 1.0.2-alpha.1 → 1.0.2-rc.1 → 1.0.2)
-- prefix of a PRERELEASE determines a CHANNEL
-- version without PRERELEASE part is a version for `stable` channel
-- version with PRERELEASE part should be a version for `alpha`, `beta`, `rc` or `ea` channels
-- versions from unknown channels are ignored
-- METADATA parts are not sorted (by semver spec)
-
-### Channels
-
-Channel is a way to specify stability level of werf version. There are following channels from the most stable to the least:
-
- 1. [stable](#stable)
- 2. [ea](#alpha-beta-rc-ea)
- 3. [rc](#alpha-beta-rc-ea)
- 4. [beta](#alpha-beta-rc-ea)
- 5. [alpha](#alpha-beta-rc-ea)
-
-multiwerf uses the most stable channel within latest available version that complies with the selected stability level. More stable channel version than selected stability level can be used by multiwerf if this version is the latest.
-
-For example selected stability level is `rc` (`multiwerf use 1.0 rc`):
- - if `1.0.3-rc.10` and `1.0.4-ea.2` versions are avaiable, then `1.0.4-ea.2` will be selected because it is newer (`1.0.4` > `1.0.3`);
- - if `1.0.4-ea.2` and `1.0.4-rc.4` versions are availble, then `1.0.4-ea.2` will be selected because it is more stable within the same version number `1.0.4`;
- - if `1.0.4-ea.2` and `1.0.5-rc.1` versions are available, then `1.0.5-rc.1` will be selected because it is newer (`1.0.5` > `1.0.4`);
-etc.
-
-#### stable
-
-`stable` can be ommited: `multiwerf use 1.1 stable` or `multiwerf use 1.1` is equivalent commands.
-
-`multiwerf` will check for the latest PATCH for passed MAJOR.MINOR.
-
-#### alpha, beta, rc, ea
-
-`multiwerf use 1.0 alpha`, `multiwerf update 1.1 rc`
-
-`multiwerf` will check for the latest version from requested channel. If there is version from equal or more stable channel then this version will be used.
-If requested channel is `beta`, but `ea` is available, then binary will be updated from `ea`.
-
-For example, let assume that repository contains these versions:
-
-```
-2.0.2
-2.0.12+build.2018.12
-2.1.0
-2.1.1-alpha.1
-2.1.1-rc.1
-2.1.2
-3.0.0
-3.0.1-alpha.1
-3.0.1-alpha.1
-3.0.1-beta.2
+# after that open new cmd.exe session and start using multiwerf
 ```
 
+## Common Usage
+
+### Unix shell (sh, bash, zsh)
+
+#### Add werf alias to the current shell session
+
+```bash
+. $(multiwerf use-script-path 1.0 ea)
 ```
-multiwerf use 2.1
+
+#### Run command on terminal startup
+
+```bash
+echo '. $(multiwerf use-script-path 1.0 ea)' >> ~/.bashrc
 ```
-This command will download and run version `2.1.2` — the latest available patch release from `stable` channel for 2.1 minor branch
 
-```
-multiwerf use 2.1 alpha
-multiwerf use 2.1 rc
-```
-These commands will ignore 2.1.1-alpha and 2.1.1-rc patch releases and download more stable version `2.1.2`.
+#### CI usage tip
 
-```
-multiwerf use 3.0 alpha
-```
-This command will download `3.0.1-beta.2` because there is availabe release in more stable channel: beta.
+`source` with `Process Substitution` can lead to errors If multiwerf is used in shell scenarios without possibility to enter custom commands after execution, for example, in CI environments. The recommendation is to use `type` to ensure that multiwerf
+is exist and executable:
 
-```
-multiwerf use 3.0 rc
-```
-This command will download `3.0.0` because the latest patch release 3.0.1 have no versions from rc channel.
-
-```
-multiwerf use 2.0
-```
-This command will download `2.0.12+build.2018.12` because metadata is ignored.
-
-
-## Installation and self-update
-
-Before checking for new versions of werf in use and update commands, multiwerf checks for self new versions. If new version is available in bintray.com/flant/multiwerf/multiwerf, multiwerf download it and  start a new proccess with the same arguments and environment as current.
-
-`--self-update=no` flag and `MULTIWERF_SELF_UPDATE=no` environment variable are available to turn off self updates.
-
-Self update is disabled if `multiwerf` binary isn't owned by user that run it and if file is not writable by owner.
-
-There are 2 recommended ways to install multiwerf:
-
-1. Put multiwerf into $HOME/bin directory. This is a best scenario for gitlab-runner setup or for local development. In this case multiwerf will check for new version no more than every day and new versions of werf will be checked no more than every hour.
-2. Put multiwerf into /usr/local/bin directory and set root as owner. This setup requires to define a cronjob for user root with command `multiwerf update 1.0`. In this case users cannot update multiwerf but self-update is working.
-
-### Update delays
-
-Checking for latest versions of multiwerf and checking for specific version and channel are delayed to prevent excessive traffic.
-
-Self update is delayed to check for new multiwerf version not earlier than 24 hours after the last check for `use` and `update` command.
-
-werf updates are delayed to check for latest version not earlier than 1 hour after the last check for `use` command. 
-
-### Running multiwerf in CI
-
-If multiwerf is used in shell scenarios without possibility to enter custom commands after execution, for example, in CI environments,
-then `source` with `Process Substitution` can lead to errors. The recommendation is to use `type` to ensure that multiwerf
-is exists and is executable:
-
-```
-type multiwerf && source <(multiwerf use 1.0 alpha)
+```shell
+type multiwerf && . $(multiwerf use-script-path 1.0 ea)
 ```
 
 This command will print a message to stderr in case if multiwerf is not found, so diagnostic in CI environment should be simple. 
 
-### Offline tips
+### Windows
 
-`multiwerf` can be used in offline scenarios.
+#### PowerShell
 
-1. set MULTIWERF_UPDATE=no and MULTIWERF_SELF_UPDATE=no environment variables to prevent http requests or use `--self-update=no --update=no` flags
-2. put desired binary file and SHA256SUMS file into `~/.multiwerf/<version> directory`
-3. `source <(multiwerf use ...)` will not make any online request and consider locally available version as latest
+##### Add werf alias to the current shell session
 
+```shell
+Invoke-Expression -Command "multiwerf use-script-path 1.0 ea --shell powershell" | Out-String -OutVariable WERF_USE_SCRIPT_PATH
+. $WERF_USE_SCRIPT_PATH.Trim()
+```
+
+#### cmd.exe
+
+##### Add werf alias to the current shell session
+
+```shell
+FOR /F "tokens=*" %g IN ('multiwerf use-script-path 1.0 ea --shell cmdexe') do (SET WERF_USE_SCRIPT_PATH=%g)
+%WERF_USE_SCRIPT_PATH%
+```
+
+## Commands
+
+- `multiwerf update <MAJOR.MINOR> [<CHANNEL>]`: perform self-update and download the actual werf binary.
+
+- `multiwerf use <MAJOR.MINOR> [<CHANNEL>]` **(deprecated)**: print the script that should be sourced to use the actual werf binary in the current shell session.
+
+- `multiwerf use-script-path [<flags>] <MAJOR.MINOR> [<CHANNEL>]`: print the script path that should be sourced to use the actual werf binary in the current shell session.
+
+- `multiwerf werf-path <MAJOR.MINOR> [<CHANNEL>]`: print the actual werf binary path (based on local werf binaries).
+
+- `multiwerf werf-exec <MAJOR.MINOR> [<CHANNEL>] [<WERF_ARGS>...]`: exec the actual werf binary (based on local werf binaries).
+
+- `multiwerf available-releases [<flags>] [<MAJOR.MINOR>] [<CHANNEL>]`: show available major.minor versions or available versions for each channel or exact version for major.minor and channel.
+
+The first positional argument is the version in the form of `MAJOR.MINOR`. `CHANNEL` is one of the following channels: alpha, beta, rc, ea, stable. More on this in [werf versioning](#werf-versioning).
+
+multiwerf downloads binaries to a directory `$HOME/.multiwerf/VERSION/`. For example, the werf version `1.0.1-ea.3` for user `gitlab-runner` will be stored as:
+
+```
+/home/gitlab-runner/.multiwerf
+|-- 1.0.1-ea.3
+|   |-- SHA256SUMS
+|   |-- SHA256SUMS.sig
+|   `-- werf-linux-amd64-1.0.1-ea.3
+|
+...
+```
+
+> `multiwerf use` command also has `--update=no` flag to prevent version checking and use only locally available versions from ~/.multiwerf.
+
+> `multiwerf use` and `multiwerf update` commands check for the latest version of multiwerf and perform self-update if it is needed. This can be disabled with `--self-update=no` flag. 
+
+## Self-update
+
+Before checking for new versions of werf in use and update commands multiwerf checks for self new versions. If a new version is available in `bintray.com/flant/multiwerf/multiwerf` multiwerf downloads it and starts a new process with the same arguments and environment as current.
+
+`--self-update=no` flag and `MULTIWERF_SELF_UPDATE=no` environment variable are available to turn off self updates.
+
+Self-update is disabled if `multiwerf` binary isn't owned by user that runs it and if file is not writable by owner.
+
+There are 2 recommended ways to install multiwerf:
+
+1. Put multiwerf into `$HOME/bin` directory. This is a best scenario for gitlab-runner setup or for local development. In this case multiwerf will check for new version no more than every day and new versions of werf will be checked no more than every hour.
+2. Put multiwerf into `/usr/local/bin` directory and set root as owner. This setup requires to define a cronjob for user root with command `multiwerf update 1.0`. In this case users cannot update multiwerf but self-update is working.
+
+### Update Delays
+
+Checking for the latest multiwerf and werf versions are delayed to prevent excessive traffic.
+
+Self-update is delayed to check for new multiwerf version not earlier than 24 hours after the last check for `use` and `update` command.
+
+werf updates are delayed to check for the latest version not earlier than 1 hour after the last check for `use` command. 
+
+## Offline Usage
+
+`multiwerf` can be used in offline scenarios:
+
+1. Set `MULTIWERF_UPDATE=no` and `MULTIWERF_SELF_UPDATE=no` environment variables to prevent http requests or use `--self-update=no` and `--update=no` flags.
+2. Put desired binary file and SHA256SUMS file into `~/.multiwerf/<version> directory`
+3. Use `multiwerf werf-path` or `multiwerf werf-exec` commands to work with a locally available version without auto-updates.
 
 ## License
 
-Apache License 2.0, see [LICENSE](LICENSE).
+Apache License 2.0, see [LICENSE](LICENSE)
