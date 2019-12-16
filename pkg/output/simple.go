@@ -23,7 +23,7 @@ func (p *SimplePrint) Cprintf(colorAttribute *color.Attribute, format string, ar
 
 func (p *SimplePrint) Error(err error) {
 	if err.Error() != "" {
-		p.Cprintf(&RedColor, "%v\n", err)
+		_, _ = p.Cprintf(&RedColor, "%v\n", err)
 	}
 }
 
@@ -33,6 +33,6 @@ func (p *SimplePrint) DebugMessage(message, comment string) {
 
 func (p *SimplePrint) Message(message string, colorAttribute *color.Attribute, comment string) {
 	if message != "" {
-		p.Cprintf(colorAttribute, "%s\n", message)
+		_, _ = p.Cprintf(colorAttribute, "%s\n", message)
 	}
 }
