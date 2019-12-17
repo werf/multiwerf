@@ -69,13 +69,13 @@ setx /M PATH "%PATH%;%MULTIWERF_BIN_PATH%"
 #### Add werf alias to the current shell session
 
 ```bash
-. $(multiwerf use-script-path 1.0 ea)
+. $(multiwerf use 1.0 stable --as-file)
 ```
 
 #### Run command on terminal startup
 
 ```bash
-echo '. $(multiwerf use-script-path 1.0 ea)' >> ~/.bashrc
+echo '. $(multiwerf use 1.0 stable --as-file)' >> ~/.bashrc
 ```
 
 #### CI usage tip
@@ -84,7 +84,7 @@ echo '. $(multiwerf use-script-path 1.0 ea)' >> ~/.bashrc
 is exist and executable:
 
 ```shell
-type multiwerf && . $(multiwerf use-script-path 1.0 ea)
+type multiwerf && . $(multiwerf use 1.0 stable --as-file)
 ```
 
 This command will print a message to stderr in case if multiwerf is not found, so diagnostic in CI environment should be simple. 
@@ -96,7 +96,7 @@ This command will print a message to stderr in case if multiwerf is not found, s
 ##### Add werf alias to the current shell session
 
 ```shell
-Invoke-Expression -Command "multiwerf use-script-path 1.0 ea --shell powershell" | Out-String -OutVariable WERF_USE_SCRIPT_PATH
+Invoke-Expression -Command "multiwerf use 1.0 stable --as-file --shell powershell" | Out-String -OutVariable WERF_USE_SCRIPT_PATH
 . $WERF_USE_SCRIPT_PATH.Trim()
 ```
 
@@ -105,25 +105,21 @@ Invoke-Expression -Command "multiwerf use-script-path 1.0 ea --shell powershell"
 ##### Add werf alias to the current shell session
 
 ```shell
-FOR /F "tokens=*" %g IN ('multiwerf use-script-path 1.0 ea --shell cmdexe') do (SET WERF_USE_SCRIPT_PATH=%g)
+FOR /F "tokens=*" %g IN ('multiwerf use 1.0 stable --as-file --shell cmdexe') do (SET WERF_USE_SCRIPT_PATH=%g)
 %WERF_USE_SCRIPT_PATH%
 ```
 
 ## Commands
 
-- `multiwerf update <MAJOR.MINOR> [<CHANNEL>]`: perform self-update and download the actual werf binary.
+- `multiwerf update <MAJOR.MINOR> [<CHANNEL>]`: Perform self-update and download the actual werf binary.
 
-- `multiwerf use <MAJOR.MINOR> [<CHANNEL>]` **(deprecated)**: print the script that should be sourced to use the actual werf binary in the current shell session.
+- `multiwerf use <MAJOR.MINOR> [<CHANNEL>]`: Print the script that should be sourced to use the actual werf binary in the current shell session.
 
-- `multiwerf use-script-path [<flags>] <MAJOR.MINOR> [<CHANNEL>]`: print the script path that should be sourced to use the actual werf binary in the current shell session.
+- `multiwerf werf-path <MAJOR.MINOR> [<CHANNEL>]`: Print the actual werf binary path (based on local werf binaries).
 
-- `multiwerf werf-path <MAJOR.MINOR> [<CHANNEL>]`: print the actual werf binary path (based on local werf binaries).
+- `multiwerf werf-exec <MAJOR.MINOR> [<CHANNEL>] [<WERF_ARGS>...]`: Exec the actual werf binary (based on local werf binaries).
 
-- `multiwerf werf-exec <MAJOR.MINOR> [<CHANNEL>] [<WERF_ARGS>...]`: exec the actual werf binary (based on local werf binaries).
-
-- `multiwerf available-releases [<flags>] [<MAJOR.MINOR>] [<CHANNEL>]`: show available major.minor versions or available versions for each channel or exact version for major.minor and channel.
-
-The first positional argument is the version in the form of `MAJOR.MINOR`. `CHANNEL` is one of the following channels: alpha, beta, rc, ea, stable. More on this in [werf versioning](#werf-versioning).
+The first positional argument is the version in the form of `MAJOR.MINOR`. `CHANNEL` is one of the following channels: alpha, beta, ea, stable, rock-solid. More on this in [werf versioning](#werf-versioning).
 
 multiwerf downloads binaries to a directory `$HOME/.multiwerf/VERSION/`. For example, the werf version `1.0.1-ea.3` for user `gitlab-runner` will be stored as:
 
@@ -161,14 +157,6 @@ Checking for the latest multiwerf and werf versions are delayed to prevent exces
 Self-update is delayed to check for new multiwerf version not earlier than 24 hours after the last check for `use` and `update` command.
 
 werf updates are delayed to check for the latest version not earlier than 1 hour after the last check for `use` command. 
-
-## Offline Usage
-
-`multiwerf` can be used in offline scenarios:
-
-1. Set `MULTIWERF_UPDATE=no` and `MULTIWERF_SELF_UPDATE=no` environment variables to prevent http requests or use `--self-update=no` and `--update=no` flags.
-2. Put desired binary file and SHA256SUMS file into `~/.multiwerf/<version> directory`
-3. Use `multiwerf werf-path` or `multiwerf werf-exec` commands to work with a locally available version without auto-updates.
 
 ## License
 

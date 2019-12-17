@@ -3,12 +3,27 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
-	"github.com/fatih/color"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/flant/multiwerf/pkg/app"
 	"github.com/flant/multiwerf/pkg/multiwerf"
+)
+
+var (
+	groupHelp        = "Selector of a release series. Examples: 1.0, 1.3."
+	groupHintOptions = []string{"1.0", "1.3"}
+	channelHelp      = fmt.Sprintf("The minimum acceptable level of stability. One of: %s.", strings.Join(multiwerf.AvailableChannels, "|"))
+	channelEnum      = []string{
+		"alpha",
+		"beta",
+		"ea",
+		"early-access",
+		"rc", // legacy
+		"stable",
+		"rock-solid",
+	}
 )
 
 func main() {
@@ -25,101 +40,86 @@ func main() {
 		return nil
 	})
 
-	var versionStr string
+	var groupStr string
 	var channelStr string
-	var outputFormat string
 	var forceRemoteCheck bool
 	var shell = "default"
+	var withCache bool
+	var asFile bool
 
 	// multiwerf update
 	updateCmd := kpApp.
 		Command("update", "Perform self-update and download the actual werf binary.").
 		Action(func(c *kingpin.ParseContext) error {
+			channelStr = normalizeChannel(channelStr)
+
 			// TODO add special error to exit with 1 and not print error message with kingpin
-			err := multiwerf.Update(versionStr, channelStr, []string{})
+			err := multiwerf.Update(groupStr, channelStr, withCache)
 			if err != nil {
 				os.Exit(1)
 			}
 			return nil
 		})
-	updateCmd.Arg("MAJOR.MINOR", "Selector of a release series. Examples: 1.0, 1.3.").
-		HintOptions("1.0", "1.3").
+
+	updateCmd.Arg("MAJOR.MINOR", groupHelp).
+		HintOptions(groupHintOptions...).
 		Required().
-		StringVar(&versionStr)
-	updateCmd.Arg("CHANNEL", "The minimum acceptable level of stability. One of: alpha|beta|rc|ea|stable.").
+		StringVar(&groupStr)
+	updateCmd.Arg("CHANNEL", channelHelp).
 		HintOptions(multiwerf.AvailableChannels...).
 		Default("stable").
-		EnumVar(&channelStr, multiwerf.AvailableChannels...)
+		EnumVar(&channelStr, channelEnum...)
+	updateCmd.Flag("with-cache", "Use to cache remote channel mapping between updates.").
+		BoolVar(&withCache)
 
 	// multiwerf use
 	useCmd := kpApp.
 		Command("use", "Print the script that should be sourced to use the actual werf binary in the current shell session.").
 		Action(func(c *kingpin.ParseContext) error {
-			// TODO add special error to exit with 1 and not print error message with kingpin
-			if shell == "powershell" {
-				color.NoColor = true
-			}
+			channelStr = normalizeChannel(channelStr)
 
-			err := multiwerf.Use(versionStr, channelStr, forceRemoteCheck, shell)
+			err := multiwerf.Use(groupStr, channelStr, forceRemoteCheck, asFile, shell)
 			if err != nil {
 				os.Exit(1)
 			}
 			return nil
 		})
-	useCmd.Arg("MAJOR.MINOR", "Selector of a release series. Examples: 1.0, 1.3.").
-		HintOptions("1.0", "1.3").
+	useCmd.Arg("MAJOR.MINOR", groupHelp).
+		HintOptions(groupHintOptions...).
 		Required().
-		StringVar(&versionStr)
-	useCmd.Arg("CHANNEL", "Minimum acceptable level of stability. One of: alpha|beta|rc|ea|stable.").
+		StringVar(&groupStr)
+	useCmd.Arg("CHANNEL", channelHelp).
 		HintOptions(multiwerf.AvailableChannels...).
 		Default("stable").
-		EnumVar(&channelStr, multiwerf.AvailableChannels...)
-	useCmd.Flag("force-remote-check", "Force check of `werf' versions in a remote storage (bintray). Do not reset delay file.").
+		EnumVar(&channelStr, channelEnum...)
+	useCmd.Flag("force-remote-check", "Force check for remote channel mapping and do not reset delay file.").
 		BoolVar(&forceRemoteCheck)
-	useCmd.Flag("shell", "Set to 'powershell' or use default behaviour that is compatible with any unix shell.").
-		Default(shell).
-		EnumVar(&shell, []string{"default", "powershell"}...)
-
-	// multiwerf use-script-path
-	getUseScriptPathCmd := kpApp.
-		Command("use-script-path", "Print the script path that should be sourced to use the actual werf binary in the current shell session.").
-		Action(func(c *kingpin.ParseContext) error {
-			err := multiwerf.GetUseScriptPath(versionStr, channelStr, shell)
-			if err != nil {
-				os.Exit(1)
-			}
-			return nil
-		})
-	getUseScriptPathCmd.Arg("MAJOR.MINOR", "Selector of a release series. Examples: 1.0, 1.3.").
-		HintOptions("1.0", "1.3").
-		Required().
-		StringVar(&versionStr)
-	getUseScriptPathCmd.Arg("CHANNEL", "The minimum acceptable level of stability. One of: alpha|beta|rc|ea|stable.").
-		HintOptions(multiwerf.AvailableChannels...).
-		Default("stable").
-		EnumVar(&channelStr, multiwerf.AvailableChannels...)
-	getUseScriptPathCmd.Flag("shell", "Set to 'cmdexe', 'powershell' or use default behaviour that is compatible with any unix shell.").
+	useCmd.Flag("shell", "Set to 'cmdexe', 'powershell' or use default behaviour that is compatible with any unix shell.").
 		Default(shell).
 		EnumVar(&shell, []string{"default", "cmdexe", "powershell"}...)
+	useCmd.Flag("as-file", "Create script and print the path that should be sourced.").
+		BoolVar(&asFile)
 
 	// multiwerf werf-path
 	werfPathCmd := kpApp.
 		Command("werf-path", "Print the actual werf binary path (based on local werf binaries).").
 		Action(func(c *kingpin.ParseContext) error {
-			err := multiwerf.WerfPath(versionStr, channelStr)
+			channelStr = normalizeChannel(channelStr)
+
+			err := multiwerf.WerfPath(groupStr, channelStr)
 			if err != nil {
 				os.Exit(1)
 			}
 			return nil
 		})
-	werfPathCmd.Arg("MAJOR.MINOR", "Selector of a release series. Examples: 1.0, 1.3.").
-		HintOptions("1.0", "1.3").
+	werfPathCmd.Arg("MAJOR.MINOR", groupHelp).
+		HintOptions(groupHintOptions...).
 		Required().
-		StringVar(&versionStr)
-	werfPathCmd.Arg("CHANNEL", "The minimum acceptable level of stability. One of: alpha|beta|rc|ea|stable.").
+		StringVar(&groupStr)
+	werfPathCmd.Arg("CHANNEL", channelHelp).
 		HintOptions(multiwerf.AvailableChannels...).
 		Default("stable").
-		EnumVar(&channelStr, multiwerf.AvailableChannels...)
+		EnumVar(&channelStr, channelEnum...)
 
 	var werfArgs []string
 
@@ -127,44 +127,33 @@ func main() {
 	werfExecCmd := kpApp.
 		Command("werf-exec", "Exec the actual werf binary (based on local werf binaries).").
 		Action(func(c *kingpin.ParseContext) error {
-			err := multiwerf.WerfExec(versionStr, channelStr, werfArgs)
+			channelStr = normalizeChannel(channelStr)
+
+			err := multiwerf.WerfExec(groupStr, channelStr, werfArgs)
 			if err != nil {
 				os.Exit(1)
 			}
 			return nil
 		})
-	werfExecCmd.Arg("MAJOR.MINOR", "Selector of a release series. Examples: 1.0, 1.3.").
-		HintOptions("1.0", "1.3").
+	werfExecCmd.Arg("MAJOR.MINOR", groupHelp).
+		HintOptions(groupHintOptions...).
 		Required().
-		StringVar(&versionStr)
-	werfExecCmd.Arg("CHANNEL", "The minimum acceptable level of stability. One of: alpha|beta|rc|ea|stable.").
+		StringVar(&groupStr)
+	werfExecCmd.Arg("CHANNEL", channelHelp).
 		HintOptions(multiwerf.AvailableChannels...).
 		Default("stable").
-		EnumVar(&channelStr, multiwerf.AvailableChannels...)
-	werfExecCmd.Arg("WERF_ARGS", "Pass args to werf").
+		EnumVar(&channelStr, channelEnum...)
+	werfExecCmd.Arg("WERF_ARGS", "Pass args to werf binary.").
 		StringsVar(&werfArgs)
 
-	// multiwerf available-releases
-	releasesCmd := kpApp.
-		Command("available-releases", "Show available major.minor versions or available versions for each channel or exact version for major.minor and channel.").
-		Action(func(c *kingpin.ParseContext) error {
-			// TODO add special error to exit with 1 and not print error message with kingpin
-			err := multiwerf.AvailableReleases(versionStr, channelStr, outputFormat)
-			if err != nil {
-				os.Exit(1)
-			}
-			return nil
-		})
-	releasesCmd.Arg("MAJOR.MINOR", "Selector of a release series. Examples: 1.0, 1.3.").
-		HintOptions("1.0", "1.3").
-		StringVar(&versionStr)
-	releasesCmd.Arg("CHANNEL", "The minimum acceptable level of stability. One of: alpha|beta|rc|ea|stable.").
-		HintOptions(multiwerf.AvailableChannels...).
-		EnumVar(&channelStr, multiwerf.AvailableChannels...)
-	releasesCmd.Flag("output", "Output format. One of: text|json.").
-		Short('o').
-		Default("text").
-		EnumVar(&outputFormat, []string{"text", "json"}...)
-
 	kingpin.MustParse(kpApp.Parse(os.Args[1:]))
+}
+
+func normalizeChannel(value string) string {
+	switch value {
+	case "rc", "early-access":
+		return "ea"
+	default:
+		return value
+	}
 }
