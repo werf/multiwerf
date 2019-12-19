@@ -109,7 +109,15 @@ else
 fi
 
 WERF_PATH=$(echo -n $WERF_PATH | sed 's/\\/\//g')
-alias werf=$WERF_PATH
+WERF_FUNC=$(cat <<EOF
+werf() 
+{
+    $WERF_PATH "\$@"
+}
+EOF
+)
+
+eval "$WERF_FUNC"
 `, group, channel, strings.Join(backgroundUpdateArgs, " "), backgroundUpdateLogPath)
 		} else {
 			fileContent = fmt.Sprintf(`
@@ -123,7 +131,15 @@ else
     (setsid multiwerf update %[3]s >%[4]s 2>&1 </dev/null &)
 fi
 
-alias werf=$WERF_PATH
+WERF_FUNC=$(cat <<EOF
+werf() 
+{
+    $WERF_PATH "\$@"
+}
+EOF
+)
+
+eval "$WERF_FUNC"
 `, group, channel, strings.Join(backgroundUpdateArgs, " "), backgroundUpdateLogPath)
 		}
 	}
