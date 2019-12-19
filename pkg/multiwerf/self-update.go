@@ -69,7 +69,7 @@ func SelfUpdate(messages chan ActionMessage) string {
 	}
 
 	// Calc latest version for channel
-	latestVersion, err := ChooseLatestVersionSimple(versions)
+	latestVersion, err := HighestSemverVersion(versions)
 	if err != nil {
 		messages <- ActionMessage{
 			comment: "self update error",
@@ -96,7 +96,7 @@ func SelfUpdate(messages chan ActionMessage) string {
 	}
 
 	messages <- ActionMessage{
-		msg:     fmt.Sprintf("%s: detect version '%s' as latest", multiwerfProlog, latestVersion),
+		msg:     fmt.Sprintf("%s: detect version %s as latest", multiwerfProlog, latestVersion),
 		msgType: "ok",
 		stage:   "self-update"}
 
@@ -105,7 +105,7 @@ func SelfUpdate(messages chan ActionMessage) string {
 		"program": files["program"],
 	}
 	messages <- ActionMessage{
-		msg:   fmt.Sprintf("dstPath is '%s', downloadFiles: %+v", selfDir, downloadFiles),
+		msg:   fmt.Sprintf("dstPath is %s, downloadFiles: %+v", selfDir, downloadFiles),
 		debug: true}
 
 	messages <- ActionMessage{msg: fmt.Sprintf("%s: start downloading", multiwerfProlog), debug: true}

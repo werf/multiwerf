@@ -62,17 +62,21 @@ func CalculateSHA256(filePath string) (string, error) {
 // ReleaseFiles return a map with release filenames of package pkg for particular osArch and version
 func ReleaseFiles(pkg string, version string, osArch string) map[string]string {
 	files := map[string]string{
-		"hash": "SHA256SUMS",
-		"sig":  "SHA256SUMS.sig",
+		"hash":    "SHA256SUMS",
+		"sig":     "SHA256SUMS.sig",
+		"program": ReleaseProgramFilename(pkg, version, osArch),
 	}
+
+	return files
+}
+
+func ReleaseProgramFilename(pkg, version, osArch string) string {
 	fileExt := ""
 	if strings.Contains(osArch, "windows") {
 		fileExt = ".exe"
 	}
-	prgFileName := fmt.Sprintf("%s-%s-%s%s", pkg, osArch, version, fileExt)
-	//prgFileName = fmt.Sprintf("dappfile-yml-linux-amd64-%s", version)
-	files["program"] = prgFileName
-	return files
+
+	return fmt.Sprintf("%s-%s-%s%s", pkg, osArch, version, fileExt)
 }
 
 func IsReleaseFilesExist(dir string, files map[string]string) (bool, error) {
