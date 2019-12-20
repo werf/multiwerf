@@ -11,9 +11,11 @@ var AppName = "multiwerf"
 var AppDescription = "version manager and updater for werf.io project"
 
 var Version = "dev"
+var Experimental bool
 
 var SelfBintraySubject = "flant"
 var SelfBintrayRepo = "multiwerf"
+var SelfExperimentalBintrayRepo = "multiwerf-experimental"
 var SelfBintrayPackage = "multiwerf"
 
 var BintraySubject = "flant"
@@ -37,6 +39,12 @@ var SelfUpdateDelay = time.Duration(24 * time.Hour)
 
 // SetupGlobalSettings init global flags with default values
 func SetupGlobalSettings(kpApp *kingpin.Application) {
+	kpApp.Flag("experimental", "allow self-update to experimental multiwerf").
+		Hidden().
+		Envar("MULTIWERF_EXPERIMENTAL").
+		Default("false").
+		BoolVar(&Experimental)
+
 	kpApp.Flag("bintray-subject", "subject part for bintray api").
 		Hidden().
 		Envar("MULTIWERF_BINTRAY_SUBJECT").
