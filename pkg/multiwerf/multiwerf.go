@@ -55,6 +55,7 @@ func Use(group, channel string, forceRemoteCheck, asFile bool, shell string) (er
 		return err
 	}
 
+	useWerfPathLogPath := filepath.Join(MultiwerfStorageDir, "multiwerf_use_first_werf_path.log")
 	backgroundUpdateLogPath := filepath.Join(MultiwerfStorageDir, "background_update.log")
 
 	var backgroundUpdateArgs []string
@@ -78,37 +79,33 @@ IF %%ERRORLEVEL%% NEQ 0 (
     multiwerf update %[1]s %[2]s 
     FOR /F "tokens=*" %%%%g IN ('multiwerf werf-path %[1]s %[2]s') do (SET WERF_PATH=%%%%g)
 ) ELSE (
-    START /B multiwerf update %[3]s >%[4]s 2>&1
+    START /B multiwerf update %[3]s >%[5]s 2>&1
 )
 
 DOSKEY werf=%%WERF_PATH%% $*
-`, group, channel, strings.Join(backgroundUpdateArgs, " "), backgroundUpdateLogPath)
+`, group, channel, strings.Join(backgroundUpdateArgs, " "), useWerfPathLogPath, backgroundUpdateLogPath)
 	case "powershell":
 		filenameExt = "ps1"
 		fileContent = fmt.Sprintf(`
-if (Invoke-Expression -Command "multiwerf werf-path %[1]s %[2]s" | Out-String -OutVariable WERF_PATH) {
-    Start-Job { multiwerf update %[3]s >%[4]s 2>&1 }
+if (Invoke-Expression -Command "multiwerf werf-path %[1]s %[2]s >%[4]s 2>&1" | Out-String -OutVariable WERF_PATH) {
+    Start-Job { multiwerf update %[3]s >%[5]s 2>&1 }
 } else {
     multiwerf update %[1]s %[2]s
     Invoke-Expression -Command "multiwerf werf-path %[1]s %[2]s" | Out-String -OutVariable WERF_PATH
 }
 
 function werf { & $WERF_PATH.Trim() $args }
-`, group, channel, strings.Join(backgroundUpdateArgs, " "), backgroundUpdateLogPath)
+`, group, channel, strings.Join(backgroundUpdateArgs, " "), useWerfPathLogPath, backgroundUpdateLogPath)
 	default:
 		if runtime.GOOS == "windows" {
 			fileContent = fmt.Sprintf(`
-WERF_PATH=$(multiwerf werf-path %[1]s %[2]s)
-
-if [ $? -ne 0 ]
-then
-    multiwerf update %[1]s %[2]s
-    WERF_PATH=$(multiwerf werf-path %[1]s %[2]s)
+if multiwerf werf-path %[1]s %[2]s >%[4]s 2>&1; then
+    (multiwerf update %[3]s >%[5]s 2>&1 </dev/null &)
 else
-    (multiwerf update %[3]s >%[4]s 2>&1 </dev/null &)
+    multiwerf update %[1]s %[2]s
 fi
 
-WERF_PATH=$(echo -n $WERF_PATH | sed 's/\\/\//g')
+WERF_PATH=$(multiwerf werf-path %[1]s %[2]s | sed 's/\\/\//g')
 WERF_FUNC=$(cat <<EOF
 werf() 
 {
@@ -118,19 +115,16 @@ EOF
 )
 
 eval "$WERF_FUNC"
-`, group, channel, strings.Join(backgroundUpdateArgs, " "), backgroundUpdateLogPath)
+`, group, channel, strings.Join(backgroundUpdateArgs, " "), useWerfPathLogPath, backgroundUpdateLogPath)
 		} else {
 			fileContent = fmt.Sprintf(`
-WERF_PATH=$(multiwerf werf-path %[1]s %[2]s)
-
-if [ $? -ne 0 ]
-then
-    multiwerf update %[1]s %[2]s
-    WERF_PATH=$(multiwerf werf-path %[1]s %[2]s)
+if multiwerf werf-path %[1]s %[2]s >%[4]s 2>&1; then
+    (setsid multiwerf update %[3]s >%[5]s 2>&1 </dev/null &)
 else
-    (setsid multiwerf update %[3]s >%[4]s 2>&1 </dev/null &)
+    multiwerf update %[1]s %[2]s
 fi
 
+WERF_PATH=$(multiwerf werf-path %[1]s %[2]s)
 WERF_FUNC=$(cat <<EOF
 werf() 
 {
@@ -140,7 +134,7 @@ EOF
 )
 
 eval "$WERF_FUNC"
-`, group, channel, strings.Join(backgroundUpdateArgs, " "), backgroundUpdateLogPath)
+`, group, channel, strings.Join(backgroundUpdateArgs, " "), useWerfPathLogPath, backgroundUpdateLogPath)
 		}
 	}
 
