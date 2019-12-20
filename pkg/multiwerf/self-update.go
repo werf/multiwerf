@@ -42,7 +42,14 @@ func SelfUpdate(messages chan ActionMessage) string {
 	selfDir := filepath.Dir(selfPath)
 	selfName := filepath.Base(selfPath)
 
-	btClient := bintray.NewBintrayClient(app.SelfBintraySubject, app.SelfBintrayRepo, app.SelfBintrayPackage)
+	var repoName string
+	if app.Experimental {
+		repoName = app.SelfExperimentalBintrayRepo
+	} else {
+		repoName = app.SelfBintrayRepo
+	}
+
+	btClient := bintray.NewBintrayClient(app.SelfBintraySubject, repoName, app.SelfBintrayPackage)
 
 	pkgInfo, err := btClient.GetPackageInfo()
 	if err != nil {
