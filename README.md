@@ -157,6 +157,16 @@ Self-update is delayed to check for new multiwerf version not earlier than 24 ho
 
 werf updates are delayed to check for the latest version not earlier than 1 hour after the last check for `use` command. 
 
+### Experimental mode
+
+To allow updates of multiwerf to experimental versions specify `--experimental` flag. When experimental mode is enabled multiwerf checks for self-updates without delays.
+
+When experimental mode is specified for the first time multiwerf will update to the latest avaiable version in the separate experimental repo: [https://bintray.com/flant/multiwerf-experimental/multiwerf](https://bintray.com/flant/multiwerf-experimental/multiwerf).
+
+When experimental mode was specified for the multiwerf command previously and now is not specified then multiwerf will downgrade to the latest available stable version in the main repo: [https://bintray.com/flant/multiwerf/multiwerf](https://bintray.com/flant/multiwerf/multiwerf).
+
+Experimental versions
+
 ## License
 
 Apache License 2.0, see [LICENSE](LICENSE)
