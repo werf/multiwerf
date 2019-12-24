@@ -16,7 +16,7 @@ if [ "$1" = ":experimental" ] ; then
   BINTRAY_REPO=multiwerf-experimental
   VERSION="v$(date +%y.%m.%d-%H.%M.%S)"
 else
-  BINTRAY_REPO=multiwerf-nonexistent
+  BINTRAY_REPO=multiwerf-nonexistent # FIXME: remove durak-guard just before release when master will be ready for stable
   VERSION=$1
 fi
 
