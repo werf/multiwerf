@@ -375,23 +375,25 @@ func PerformSelfUpdate(printer output.Printer) (err error) {
 			}
 		}
 
-		// Check for delay of self update
-		selfUpdateDelay := UpdateDelay{
-			Filename: filepath.Join(MultiwerfStorageDir, "update-multiwerf.delay"),
-		}
-		selfUpdateDelay.WithDelay(app.SelfUpdateDelay)
-		// self update is enabled here, so check for delay and disable self update if needed
-		remains := selfUpdateDelay.TimeRemains()
-		if remains != "" {
-			messages <- ActionMessage{
-				msg:     fmt.Sprintf("%s %s. Self-update is delayed: %s remains till next self-update", app.AppName, app.Version, remains),
-				msgType: "ok",
+		if !app.Experimental {
+			// Check for delay of self update
+			selfUpdateDelay := UpdateDelay{
+				Filename: filepath.Join(MultiwerfStorageDir, "update-multiwerf.delay"),
 			}
-			messages <- ActionMessage{action: "exit"}
-			return
-		} else {
-			// FIXME: self update can be erroneous: new version exists, but with bad hash. Should we set a lower delay with progressive increase in this case?
-			selfUpdateDelay.UpdateTimestamp()
+			selfUpdateDelay.WithDelay(app.SelfUpdateDelay)
+			// self update is enabled here, so check for delay and disable self update if needed
+			remains := selfUpdateDelay.TimeRemains()
+			if remains != "" {
+				messages <- ActionMessage{
+					msg:     fmt.Sprintf("%s %s. Self-update is delayed: %s remains till next self-update", app.AppName, app.Version, remains),
+					msgType: "ok",
+				}
+				messages <- ActionMessage{action: "exit"}
+				return
+			} else {
+				// FIXME: self update can be erroneous: new version exists, but with bad hash. Should we set a lower delay with progressive increase in this case?
+				selfUpdateDelay.UpdateTimestamp()
+			}
 		}
 
 		// Do self-update: check latest version, download, replace a binary
