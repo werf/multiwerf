@@ -1,6 +1,10 @@
 #!/bin/bash
 set -eo pipefail -o nounset
 
+for f in $(find scripts/lib -type f -name "*.sh"); do
+  source $f
+done
+
 # build parameters
 OS_ARCHS=(
   "linux-amd64"
@@ -9,7 +13,6 @@ OS_ARCHS=(
 )
 BUILD_PACKAGE=github.com/flant/multiwerf/cmd/multiwerf
 VERSION_VAR_NAME=github.com/flant/multiwerf/pkg/app.Version
-RELEASE_BUILD_DIR=release/build
 
 if [[ -z "${1-}" ]] ; then
   echo "Usage: $0 VERSION"

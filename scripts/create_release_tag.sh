@@ -2,14 +2,25 @@
 
 set -eo pipefail -o nounset
 
+for f in $(find scripts/lib -type f -name "*.sh"); do
+  source $f
+done
+
 if [ -z "${1-}" ] ; then
   echo "Usage: $0 VERSION"
   echo
   exit 1
 fi
 
+if [ "$1" = ":experimental" ] ; then
+  BINTRAY_REPO=multiwerf-experimental
+  VERSION="v$(date +%y.%m.%d-%H.%M.%S)"
+else
+  BINTRAY_REPO=multiwerf-nonexistent
+  VERSION=$1
+fi
+
 DIR="$(dirname "${0}")"
-VERSION=${1}
 
 TAG_TEMPLATE="$DIR/git_tag_template.md"
 
@@ -20,8 +31,7 @@ if [[ -n $CHANGELOG_TEXT ]] ; then
   CHANGELOG_TEXT="$(echo "$CHANGELOG_TEXT" | grep -v '^Merge' | sed 's/^/- /')"
 fi
 echo "CHANGELOG_TEXT = ${CHANGELOG_TEXT}"
-echo "envsubst"
 
-VERSION="${VERSION}" CHANGELOG_TEXT="${CHANGELOG_TEXT}" envsubst < ${TAG_TEMPLATE} | git tag --annotate --file - --edit $VERSION
+BINTRAY_REPO="${BINTRAY_REPO}" VERSION="${VERSION}" CHANGELOG_TEXT="${CHANGELOG_TEXT}" envsubst < ${TAG_TEMPLATE} | git tag --annotate --file - --edit $VERSION
 
 git push --tags
