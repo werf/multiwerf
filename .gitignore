@@ -12,3 +12,4 @@
 *.out
 
 /multiwerf
+/release-build

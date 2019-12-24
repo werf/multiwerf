@@ -13,9 +13,11 @@ var AppName = "multiwerf"
 var AppDescription = "werf version manager"
 
 var Version = "dev"
+var Experimental bool
 
 var SelfBintraySubject = "flant"
 var SelfBintrayRepo = "multiwerf"
+var SelfExperimentalBintrayRepo = "multiwerf-experimental"
 var SelfBintrayPackage = "multiwerf"
 
 var BintraySubject = "flant"
@@ -42,6 +44,12 @@ var SelfUpdateDelay = 2 * time.Hour
 
 // SetupGlobalSettings init global flags with default values
 func SetupGlobalSettings(kpApp *kingpin.Application) {
+	kpApp.Flag("experimental", "allow self-update to experimental multiwerf").
+		Hidden().
+		Envar("MULTIWERF_EXPERIMENTAL").
+		Default("false").
+		BoolVar(&Experimental)
+
 	kpApp.Flag("channel-mapping-url", "The URL to specific remote channel mapping file.").
 		Envar("MULTIWERF_CHANNEL_MAPPING_URL").
 		Default(ChannelMappingUrl).
