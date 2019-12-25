@@ -1,6 +1,7 @@
 #!/bin/bash
 
-set -eo pipefail -o nounset
+set -e
+#set -eo pipefail -o nounset
 
 for f in $(find scripts/lib -type f -name "*.sh"); do
   source $f
@@ -41,4 +42,4 @@ TAG_TEMPLATE="$DIR/git_tag_template.md"
 
 BINTRAY_REPO="${BINTRAY_REPO}" VERSION="${VERSION}" CHANGELOG_TEXT="${CHANGELOG_TEXT}" envsubst < ${TAG_TEMPLATE} | git tag --annotate --file - $EXTRA_GIT_TAG_OPTS $VERSION
 
-git push --tags
+git push $GIT_ORIGIN --tags
