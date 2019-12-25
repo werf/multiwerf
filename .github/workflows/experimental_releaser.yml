@@ -13,5 +13,7 @@ jobs:
       uses: actions/checkout@v1
     - name: Create release tag
       run: |
+        git config user.name github-experimental-releaser
+        git config user.email 256@flant.com
         ./scripts/create_release_tag.sh :experimental
       shell: bash
