@@ -11,8 +11,6 @@ General usage of multiwerf is managing werf binaries and providing the actual bi
 - [Installation](#installation)
 - [Common Usage](#common-usage)
 - [Commands](#commands)
-- [Self-update](#self-update)
-- [Offline Usage](#offline-usage)
 - [License](#license)
 
 ## Installation
@@ -110,17 +108,18 @@ FOR /F "tokens=*" %g IN ('multiwerf use 1.0 stable --as-file --shell cmdexe') do
 
 ## Commands
 
-- `multiwerf update <MAJOR.MINOR> [<CHANNEL>]`: Perform self-update and download the actual werf binary.
+- `multiwerf update <MAJOR.MINOR> [<CHANNEL>]`: Perform self-update and download the actual channel werf binary.
 
-- `multiwerf use <MAJOR.MINOR> [<CHANNEL>]`: Print the script that should be sourced to use the actual werf binary in the current shell session.
+- `multiwerf use <MAJOR.MINOR> [<CHANNEL>]`: Generate the shell script that should be sourced to use the actual channel werf binary in the current shell session based on the local channel mapping.
 
-- `multiwerf werf-path <MAJOR.MINOR> [<CHANNEL>]`: Print the actual werf binary path (based on local werf binaries).
+- `multiwerf werf-path <MAJOR.MINOR> [<CHANNEL>]`: Print the actual channel werf binary path based on the local channel mapping..
 
-- `multiwerf werf-exec <MAJOR.MINOR> [<CHANNEL>] [<WERF_ARGS>...]`: Exec the actual werf binary (based on local werf binaries).
+- `multiwerf werf-exec <MAJOR.MINOR> [<CHANNEL>] [<WERF_ARGS>...]`: Exec the actual channel werf binary based on the local channel mapping.
 
-The first positional argument is the version in the form of `MAJOR.MINOR`. `CHANNEL` is one of the following channels: alpha, beta, ea, stable, rock-solid. More on this in [werf versioning](#werf-versioning).
+The first positional argument is the version in the form of `MAJOR.MINOR`. `CHANNEL` is one of the following channels: alpha, beta, ea, stable, rock-solid. Read more about it in [Backward Compatibility Promise](https://github.com/flant/werf#backward-compatibility-promise) section.
 
-multiwerf downloads binaries to a directory `$HOME/.multiwerf/VERSION/`. For example, the werf version `1.0.1-ea.3` for user `gitlab-runner` will be stored as:
+multiwerf download werf binary to a directory like `$HOME/.multiwerf/VERSION/`. 
+For example, the werf version `1.0.1-ea.3` for the user `gitlab-runner` will be stored as:
 
 ```
 /home/gitlab-runner/.multiwerf
@@ -132,30 +131,15 @@ multiwerf downloads binaries to a directory `$HOME/.multiwerf/VERSION/`. For exa
 ...
 ```
 
-> `multiwerf use` command also has `--update=no` flag to prevent version checking and use only locally available versions from ~/.multiwerf.
-
-> `multiwerf use` and `multiwerf update` commands check for the latest version of multiwerf and perform self-update if it is needed. This can be disabled with `--self-update=no` flag. 
+> `multiwerf update` checks for the latest version of multiwerf and performs self-update if it is needed. This can be disabled with `--self-update=no` flag. 
 
 ## Self-update
 
-Before checking for new versions of werf in use and update commands multiwerf checks for self new versions. If a new version is available in `bintray.com/flant/multiwerf/multiwerf` multiwerf downloads it and starts a new process with the same arguments and environment as current.
+Before downloading the actual channel werf binary multiwerf performs self-update process. If the new version is available in `bintray.com/flant/multiwerf/multiwerf` multiwerf downloads it and starts the new process with the same environment and arguments.
 
-`--self-update=no` flag and `MULTIWERF_SELF_UPDATE=no` environment variable are available to turn off self updates.
+`--self-update=no` flag and `MULTIWERF_SELF_UPDATE=no` environment variable are available to turn off self-updates.
 
-Self-update is disabled if `multiwerf` binary isn't owned by user that runs it and if file is not writable by owner.
-
-There are 2 recommended ways to install multiwerf:
-
-1. Put multiwerf into `$HOME/bin` directory. This is a best scenario for gitlab-runner setup or for local development. In this case multiwerf will check for new version no more than every day and new versions of werf will be checked no more than every hour.
-2. Put multiwerf into `/usr/local/bin` directory and set root as owner. This setup requires to define a cronjob for user root with command `multiwerf update 1.0`. In this case users cannot update multiwerf but self-update is working.
-
-### Update Delays
-
-Checking for the latest multiwerf and werf versions are delayed to prevent excessive traffic.
-
-Self-update is delayed to check for new multiwerf version not earlier than 24 hours after the last check for `use` and `update` command.
-
-werf updates are delayed to check for the latest version not earlier than 1 hour after the last check for `use` command. 
+Self-update is disabled if `multiwerf` binary is not owned by user that runs it and if the binary file is not writable by owner. 
 
 ### Experimental mode
 

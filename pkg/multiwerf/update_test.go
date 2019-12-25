@@ -10,7 +10,7 @@ import (
 
 func Test_GetBinaryInfo(t *testing.T) {
 	// testdata/empty_bin_path/.multiwerf
-	MultiwerfStorageDir = filepath.Join("testdata", "1.0-beta-dirs", ".multiwerf")
+	StorageDir = filepath.Join("testdata", "1.0-beta-dirs", ".multiwerf")
 
 	msgsCh := make(chan ActionMessage, 10)
 
@@ -18,7 +18,7 @@ func Test_GetBinaryInfo(t *testing.T) {
 	var err error
 
 	go func() {
-		info, err = verifiedLocalBinaryInfo("v1.0.1-beta.9", true, msgsCh)
+		info, err = verifiedLocalBinaryInfo(msgsCh, "v1.0.1-beta.9")
 		msgsCh <- ActionMessage{
 			action: "exit",
 		}

@@ -3,6 +3,7 @@ package bintray
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/flant/multiwerf/pkg/http"
 )
@@ -81,17 +82,26 @@ func GetPackageVersions(packageInfo string) (versions []string) {
 func (bc *MainBintrayClient) DownloadFiles(version string, dstDir string, files map[string]string) error {
 	srcUrl := fmt.Sprintf("%s/%s/%s/%s", BintrayDlUrl, bc.Subject, bc.Repo, version)
 
+	shouldBeRemoved := true
+	defer func() {
+		if shouldBeRemoved {
+			os.RemoveAll(dstDir)
+		}
+	}()
+
 	for fileType, fileName := range files {
 		// TODO implement goreleaser lifecycle and verify gpg signing
 		if fileType == "sig" {
 			continue
 		}
 		fileUrl := fmt.Sprintf("%s/%s", srcUrl, fileName)
-		err := http.DownloadLargeFile(fileUrl, dstDir, fileName)
-		if err != nil {
+
+		if err := http.DownloadLargeFile(fileUrl, dstDir, fileName); err != nil {
 			return fmt.Errorf("%s download error: %v", fileUrl, err)
 		}
 	}
+
+	shouldBeRemoved = false
 
 	return nil
 }
