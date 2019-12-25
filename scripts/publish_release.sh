@@ -11,9 +11,14 @@ done
 main() {
   parse_args "$@" || (usage && exit 1)
 
-  if [[ -z $BINTRAY_AUTH && -z $GITHUB_TOKEN ]] ; then
-    echo "Warning! No bintray or github token specified."
-    echo
+  if [[ -z $BINTRAY_AUTH ]] ; then
+    echo "BINTRAY_AUTH token required!" >&2
+    exit 1
+  fi
+
+  if [[ -z $GITHUB_TOKEN ]] ; then
+    echo "GITHUB_TOKEN token required!" >&2
+    exit 1
   fi
 
   # check for git and curl
@@ -53,50 +58,35 @@ main() {
   (scripts/build_release.sh "$GIT_TAG") || (echo "$0: scripts/build_release.sh failed" && exit 2)
 
   echo "Publish version $VERSION from git tag $GIT_TAG"
-  if [ -n "$BINTRAY_AUTH" ] ; then
-    ( bintray_create_version "$VERSION" && echo "  Bintray: Version $VERSION created" ) || ( exit 1 )
+  ( bintray_create_version "$VERSION" && echo "  Bintray: Version $VERSION created" ) || ( exit 1 )
+
+  if github_create_release ; then
+    echo "  Github: Release $VERSION for tag $GIT_TAG created"
   else
-    echo "  Bintray: cannot create a version without token"
+    exit 1
   fi
-  if [ -n "$GITHUB_TOKEN" ] ; then
-    if github_create_release ; then
-      echo "  Github: Release $VERSION for tag $GIT_TAG created"
-    else
-      exit 1
-    fi
-    echo GITHUB_RELEASE_ID='"'"${GITHUB_RELEASE_ID}"'"'
-  else
-    echo "  Github: cannot create release without token"
-  fi
+  echo GITHUB_RELEASE_ID='"'"${GITHUB_RELEASE_ID}"'"'
 
   echo "Upload assets"
-  if [ -n "$BINTRAY_AUTH" ] ; then
-    echo "  Upload to bintray"
-    (
-     cd "$RELEASE_BUILD_DIR/$VERSION"
-     for filename in "${BASE_NAME}"-* SHA256SUMS info.txt ; do
-       echo "  - $filename"
-       ( bintray_upload_file_into_version "$VERSION" "$filename" "$VERSION/$filename" ) || ( exit 1 )
-     done
-    )
-    echo "  Publish files"
-    ( bintray_publish_files_in_version "$VERSION" ) || ( exit 1 )
-  else
-    echo "  Bintray: cannot upload without token"
-  fi
+  echo "  Upload to bintray"
+  (
+   cd "$RELEASE_BUILD_DIR/$VERSION"
+   for filename in "${BASE_NAME}"-* SHA256SUMS info.txt ; do
+     echo "  - $filename"
+     ( bintray_upload_file_into_version "$VERSION" "$filename" "$VERSION/$filename" ) || ( exit 1 )
+   done
+  )
+  echo "  Publish files"
+  ( bintray_publish_files_in_version "$VERSION" ) || ( exit 1 )
 
-  if [ -n "$GITHUB_TOKEN" ] ; then
-    echo "  Upload to github"
-    (
-     cd "$RELEASE_BUILD_DIR/$VERSION"
-     for filename in "${BASE_NAME}"-* SHA256SUMS info.txt ; do
-       echo "  - $filename"
-       ( github_upload_asset_for_release "$filename") || ( exit 1 )
-     done
-    )
-  else
-    echo "  Github: cannot upload without token"
-  fi
+  echo "  Upload to github"
+  (
+   cd "$RELEASE_BUILD_DIR/$VERSION"
+   for filename in "${BASE_NAME}"-* SHA256SUMS info.txt ; do
+     echo "  - $filename"
+     ( github_upload_asset_for_release "$filename") || ( exit 1 )
+   done
+  )
 }
 
 usage() {
@@ -135,9 +125,6 @@ parse_args() {
       --bintray-auth)
         BINTRAY_AUTH="$2"
         shift
-        ;;
-      --no-prerelease)
-        NO_PRERELEASE="yes"
         ;;
       --help|-h)
         return 1
