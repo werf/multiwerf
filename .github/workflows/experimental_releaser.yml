@@ -15,7 +15,7 @@ jobs:
 
         git clone https://$EXPERIMENTAL_RELEASER_USER_NAME:$EXPERIMENTAL_RELEASER_PASSWORD@github.com/flant/multiwerf.git
         cd multiwerf
-        git checkout $GITHUB_SHA
+        git -c advice.detachedHead=false checkout $GITHUB_SHA
 
         git config user.name $EXPERIMENTAL_RELEASER_USER_NAME
         git config user.email $EXPERIMENTAL_RELEASER_USER_EMAIL
