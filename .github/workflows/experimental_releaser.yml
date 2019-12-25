@@ -1,0 +1,17 @@
+name: Experimental releaser
+on:
+  push:
+    branches:
+    - experimental
+
+jobs:
+  create_experimental_release:
+    name: Create experimental multiwerf release
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v1
+    - name: Create release tag
+      run: |
+        ./scripts/create_release_tag :experimental
+      shell: bash
