@@ -1,4 +1,4 @@
-name: Publish multiwerf release
+name: Release publisher
 on:
   push:
     tags:
