@@ -3,7 +3,6 @@ on:
   push:
     branches:
     - experimental
-
 jobs:
   create_experimental_release:
     name: Create experimental multiwerf release
@@ -22,3 +21,7 @@ jobs:
 
         ./scripts/create_release_tag.sh :experimental
       shell: bash
+      env:
+        EXPERIMENTAL_RELEASER_USER_NAME: ${{ secrets.EXPERIMENTAL_RELEASER_USER_NAME }}
+        EXPERIMENTAL_RELEASER_USER_PASSWORD: ${{ secrets.EXPERIMENTAL_RELEASER_USER_PASSWORD }}
+        EXPERIMENTAL_RELEASER_USER_EMAIL: ${{ secrets.EXPERIMENTAL_RELEASER_USER_EMAIL }}
