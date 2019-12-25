@@ -14,8 +14,15 @@ import (
 var (
 	groupHelp        = "Selector of a release series. Examples: 1.0, 1.3."
 	groupHintOptions = []string{"1.0", "1.3"}
-	channelHelp      = fmt.Sprintf("The minimum acceptable level of stability. One of: %s.", strings.Join(multiwerf.AvailableChannels, "|"))
-	channelEnum      = []string{
+	channels         = []string{
+		"alpha",
+		"beta",
+		"ea",
+		"stable",
+		"rock-solid",
+	}
+	channelHelp = fmt.Sprintf("The minimum acceptable level of stability. One of: %s.", strings.Join(channels, "|"))
+	channelEnum = []string{
 		"alpha",
 		"beta",
 		"ea",
@@ -42,6 +49,7 @@ func main() {
 
 	var groupStr string
 	var channelStr string
+	var selfUpdate = "yes"
 	var forceRemoteCheck bool
 	var shell = "default"
 	var withCache bool
@@ -49,32 +57,36 @@ func main() {
 
 	// multiwerf update
 	updateCmd := kpApp.
-		Command("update", "Perform self-update and download the actual werf binary.").
+		Command("update", "Perform self-update and download the actual channel werf binary.").
 		Action(func(c *kingpin.ParseContext) error {
 			channelStr = normalizeChannel(channelStr)
+			skipSelfUpdate := selfUpdate == "no"
 
 			// TODO add special error to exit with 1 and not print error message with kingpin
-			err := multiwerf.Update(groupStr, channelStr, withCache)
+			err := multiwerf.Update(groupStr, channelStr, skipSelfUpdate, withCache)
 			if err != nil {
 				os.Exit(1)
 			}
 			return nil
 		})
-
 	updateCmd.Arg("MAJOR.MINOR", groupHelp).
 		HintOptions(groupHintOptions...).
 		Required().
 		StringVar(&groupStr)
 	updateCmd.Arg("CHANNEL", channelHelp).
-		HintOptions(multiwerf.AvailableChannels...).
+		HintOptions(channels...).
 		Default("stable").
 		EnumVar(&channelStr, channelEnum...)
-	updateCmd.Flag("with-cache", "Use to cache remote channel mapping between updates.").
+	updateCmd.Flag("with-cache", "Cache remote channel mapping between updates.").
 		BoolVar(&withCache)
+	updateCmd.Flag("self-update", "Perform multiwerf self-update. To disable set to 'no'.").
+		Envar("MULTIWERF_SELF_UPDATE").
+		Default(selfUpdate).
+		StringVar(&selfUpdate)
 
 	// multiwerf use
 	useCmd := kpApp.
-		Command("use", "Print the script that should be sourced to use the actual werf binary in the current shell session.").
+		Command("use", "Generate the shell script that should be sourced to use the actual channel werf binary in the current shell session based on the local channel mapping.").
 		Action(func(c *kingpin.ParseContext) error {
 			channelStr = normalizeChannel(channelStr)
 
@@ -89,20 +101,20 @@ func main() {
 		Required().
 		StringVar(&groupStr)
 	useCmd.Arg("CHANNEL", channelHelp).
-		HintOptions(multiwerf.AvailableChannels...).
+		HintOptions(channels...).
 		Default("stable").
 		EnumVar(&channelStr, channelEnum...)
-	useCmd.Flag("force-remote-check", "Force check for remote channel mapping and do not reset delay file.").
+	useCmd.Flag("force-remote-check", "Do not use '--with-cache' option with background multiwerf update command.").
 		BoolVar(&forceRemoteCheck)
-	useCmd.Flag("shell", "Set to 'cmdexe', 'powershell' or use default behaviour that is compatible with any unix shell.").
+	useCmd.Flag("shell", "Set to 'cmdexe', 'powershell' or use the default behaviour that is compatible with any unix shell.").
 		Default(shell).
 		EnumVar(&shell, []string{"default", "cmdexe", "powershell"}...)
-	useCmd.Flag("as-file", "Create script and print the path that should be sourced.").
+	useCmd.Flag("as-file", "Create the script and print the path for sourcing.").
 		BoolVar(&asFile)
 
 	// multiwerf werf-path
 	werfPathCmd := kpApp.
-		Command("werf-path", "Print the actual werf binary path (based on local werf binaries).").
+		Command("werf-path", "Print the actual channel werf binary path based on the local channel mapping.").
 		Action(func(c *kingpin.ParseContext) error {
 			channelStr = normalizeChannel(channelStr)
 
@@ -117,7 +129,7 @@ func main() {
 		Required().
 		StringVar(&groupStr)
 	werfPathCmd.Arg("CHANNEL", channelHelp).
-		HintOptions(multiwerf.AvailableChannels...).
+		HintOptions(channels...).
 		Default("stable").
 		EnumVar(&channelStr, channelEnum...)
 
@@ -125,7 +137,7 @@ func main() {
 
 	// multiwerf werf-exec
 	werfExecCmd := kpApp.
-		Command("werf-exec", "Exec the actual werf binary (based on local werf binaries).").
+		Command("werf-exec", "Exec the actual channel werf binary based on the local channel mapping.").
 		Action(func(c *kingpin.ParseContext) error {
 			channelStr = normalizeChannel(channelStr)
 
@@ -140,7 +152,7 @@ func main() {
 		Required().
 		StringVar(&groupStr)
 	werfExecCmd.Arg("CHANNEL", channelHelp).
-		HintOptions(multiwerf.AvailableChannels...).
+		HintOptions(channels...).
 		Default("stable").
 		EnumVar(&channelStr, channelEnum...)
 	werfExecCmd.Arg("WERF_ARGS", "Pass args to werf binary.").

@@ -85,11 +85,11 @@ func IsReleaseFilesExist(dir string, files map[string]string) (bool, error) {
 		if fileType == "sig" {
 			continue
 		}
-		fExist, err := FileExists(dir, fileName)
+
+		fExist, err := FileExists(filepath.Join(dir, fileName))
 		if err != nil {
 			return false, err
-		}
-		if !fExist {
+		} else if !fExist {
 			exist = false
 			break
 		}
@@ -134,35 +134,39 @@ func LoadHashMap(hashesReader io.Reader) (hashes map[string]string) {
 	return
 }
 
-// FileExists returns true if file `name` is existing in `dir`
-func FileExists(dir string, name string) (bool, error) {
-	filePath := filepath.Join(dir, name)
-	info, err := os.Stat(filePath)
+// FileExists returns true if path exists
+func FileExists(path string) (bool, error) {
+	_, err := os.Stat(path)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if isNotExistError(err) {
 			return false, nil
 		}
+
 		return false, err
 	}
-	if info.Mode().IsRegular() {
-		return true, err
-	}
-	return false, nil
+
+	return true, nil
 }
 
-// DirExists returns true if path is an existing directory
 func DirExists(path string) (bool, error) {
-	info, err := os.Stat(path)
+	fileInfo, err := os.Stat(path)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if isNotExistError(err) {
 			return false, nil
 		}
+
 		return false, err
 	}
-	if info.IsDir() {
-		return true, err
-	}
-	return false, nil
+
+	return fileInfo.IsDir(), nil
+}
+
+func isNotExistError(err error) bool {
+	return os.IsNotExist(err) || IsNotADirectoryError(err)
+}
+
+func IsNotADirectoryError(err error) bool {
+	return strings.HasSuffix(err.Error(), "not a directory")
 }
 
 // TildeExpand expands tilde prefix with home directory path
@@ -183,48 +187,61 @@ func TildeExpand(path string) (string, error) {
 	return filepath.Join(homeDir, path[1:]), nil
 }
 
-// VerifyReleaseFileHash verify targetFile in dir accroding to hashFile in dir
-//
-// There are three states:
-// - err != nil if something is missing
-// false, nil if files are exists, we got hash for file and hashes is not matched
-// true, nil is hashes is matched
-func VerifyReleaseFileHash(dir string, hashFile string, targetFile string) (bool, error) {
-	hashFileExists, err := FileExists(dir, hashFile)
-	if err != nil {
+func VerifyReleaseFileHash(messages chan ActionMessage, dir string, hashFile string, targetFile string) (bool, error) {
+	if hashFileExists, err := FileExists(filepath.Join(dir, hashFile)); err != nil {
 		return false, err
-	}
-	if !hashFileExists {
-		return false, fmt.Errorf("%s is not exists", hashFile)
+	} else if !hashFileExists {
+		messages <- ActionMessage{
+			msg:     fmt.Sprintf("The file %s does not exist", hashFile),
+			msgType: WarnMsgType,
+		}
+
+		return false, nil
 	}
 
-	prgFileExists, err := FileExists(dir, targetFile)
-	if err != nil {
+	if prgFileExists, err := FileExists(filepath.Join(dir, targetFile)); err != nil {
 		return false, err
-	}
-	if !prgFileExists {
-		return false, fmt.Errorf("%s is not exists", targetFile)
+	} else if !prgFileExists {
+		messages <- ActionMessage{
+			msg:     fmt.Sprintf("The file %s does not exist", targetFile),
+			msgType: WarnMsgType,
+		}
+
+		return false, nil
 	}
 
 	hashes := LoadHashFile(dir, hashFile)
-
 	if len(hashes) == 0 {
-		return false, fmt.Errorf("%s is empty or is not a checksums file", hashFile)
+		messages <- ActionMessage{
+			msg:     fmt.Sprintf("The file %s is empty or is not a checksum file", hashFile),
+			msgType: WarnMsgType,
+		}
+
+		return false, nil
 	}
 
-	return VerifyReleaseFileHashFromHashes(dir, hashes, targetFile)
+	return VerifyReleaseFileHashFromHashes(messages, dir, hashes, targetFile)
 }
 
-// VerifyReleaseFileHashFromHashes verifies targetFile hash with matched hash from hashes map
-func VerifyReleaseFileHashFromHashes(dir string, hashes map[string]string, targetFile string) (bool, error) {
+func VerifyReleaseFileHashFromHashes(messages chan ActionMessage, dir string, hashes map[string]string, targetFile string) (bool, error) {
 	hashForFile, hasHash := hashes[targetFile]
 	if !hasHash {
-		return false, fmt.Errorf("there is not checksum for %s", targetFile)
+		messages <- ActionMessage{
+			msg:     fmt.Sprintf("There is not checksum for %s", targetFile),
+			msgType: WarnMsgType,
+		}
+
+		return false, nil
 	}
 
 	hash, err := CalculateSHA256(filepath.Join(dir, targetFile))
 	if err != nil {
-		return false, fmt.Errorf("sha256 failed for %s: %v", targetFile, err)
+		messages <- ActionMessage{
+			msg:     fmt.Sprintf("sha256 failed for %s: %v", targetFile, err),
+			msgType: WarnMsgType,
+		}
+
+		return false, nil
 	}
 
 	if hash != hashForFile {

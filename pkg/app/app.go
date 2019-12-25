@@ -29,8 +29,6 @@ var StorageDir = "~/.multiwerf"
 var ChannelMappingUrl = "https://raw.githubusercontent.com/flant/werf/multiwerf/multiwerf.json"
 var ChannelMappingPath string
 
-var SelfUpdate = "yes"
-var Update = "yes"
 var DebugMessages = "no"
 
 // An hour delay between checks for the latest version of werf
@@ -50,12 +48,12 @@ func SetupGlobalSettings(kpApp *kingpin.Application) {
 		Default("false").
 		BoolVar(&Experimental)
 
-	kpApp.Flag("channel-mapping-url", "The URL to specific remote channel mapping file.").
+	kpApp.Flag("channel-mapping-url", "The URL to the specific remote channel mapping file.").
 		Envar("MULTIWERF_CHANNEL_MAPPING_URL").
 		Default(ChannelMappingUrl).
 		StringVar(&ChannelMappingUrl)
 
-	kpApp.Flag("channel-mapping-path", "The path to override default channel mapping file.").
+	kpApp.Flag("channel-mapping-path", "The path to override the default channel mapping file.").
 		Envar("MULTIWERF_CHANNEL_MAPPING_PATH").
 		Default(ChannelMappingPath).
 		StringVar(&ChannelMappingPath)
@@ -90,16 +88,6 @@ func SetupGlobalSettings(kpApp *kingpin.Application) {
 		Envar("MULTIWERF_STORAGE_DIR").
 		Default(StorageDir).
 		StringVar(&StorageDir)
-
-	kpApp.Flag("self-update", "Set to 'no' to disable self-update in use and update command.").
-		Envar("MULTIWERF_SELF_UPDATE").
-		Default(SelfUpdate).
-		StringVar(&SelfUpdate)
-
-	kpApp.Flag("update", "Set to 'no' to disable werf update in use and update command.").
-		Envar("MULTIWERF_UPDATE").
-		Default(Update).
-		StringVar(&Update)
 
 	kpApp.Flag("debug", "Set to 'yes' to turn on debug messages.").
 		Envar("MULTIWERF_DEBUG").
