@@ -3,7 +3,9 @@ package multiwerf
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 
@@ -343,7 +345,7 @@ func ReplaceBinaryFile(dir string, currentName string, newName string) (err erro
 	currentPath := filepath.Join(dir, currentName)
 	newPath := filepath.Join(dir, newName)
 	// this is where we'll move the executable to so that we can swap in the updated replacement
-	oldPath := filepath.Join(dir, fmt.Sprintf(".%s.old", currentName))
+	oldPath := filepath.Join(TmpDir, fmt.Sprintf(".%s.old", currentName))
 	// delete any existing old exec file - this is necessary on Windows for two reasons:
 	// 1. after a successful update, Windows can't remove the .old file because the process is still running
 	// 2. windows rename operations fail if the destination file already exists
@@ -364,7 +366,6 @@ func ReplaceBinaryFile(dir string, currentName string, newName string) (err erro
 
 	// move the new executable in to become the new program
 	err = os.Rename(newPath, currentPath)
-
 	if err != nil {
 		// move unsuccessful
 		//
@@ -381,16 +382,14 @@ func ReplaceBinaryFile(dir string, currentName string, newName string) (err erro
 		return err
 	}
 
-	// move successful, remove the old binary if needed
-	//if removeOld {
-	errRemove := os.Remove(oldPath)
-
 	// windows has trouble with removing old binaries, so hide it instead
-	if errRemove != nil {
-		//	_ = hideFile(oldPath)
-		return errRemove
+	if runtime.GOOS != "windows" {
+		// remove the old binary
+		errRemove := os.Remove(oldPath)
+		if errRemove != nil {
+			return errRemove
+		}
 	}
-	//}
 
 	return nil
 }
@@ -405,10 +404,25 @@ type rollbackErr struct {
 func ExecUpdatedBinary(path string) error {
 	newArgs := os.Args[0:]
 	newArgs = append(newArgs, "--self-update=no")
-	err := syscall.Exec(path, newArgs, os.Environ())
-	if err != nil {
-		return err
+
+	if runtime.GOOS == "windows" {
+		cmd := exec.Command(path, newArgs[1:]...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Stdin = os.Stdin
+
+		if err := cmd.Run(); err != nil {
+			return err
+		}
+
+		os.Exit(0)
+	} else {
+		err := syscall.Exec(path, newArgs, os.Environ())
+		if err != nil {
+			return err
+		}
 	}
+
 	// Cannot be reached
 	return nil
 }
