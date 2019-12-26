@@ -347,7 +347,14 @@ func ReplaceBinaryFile(dir string, currentName string, newName string) (err erro
 	// delete any existing old exec file - this is necessary on Windows for two reasons:
 	// 1. after a successful update, Windows can't remove the .old file because the process is still running
 	// 2. windows rename operations fail if the destination file already exists
-	_ = os.Remove(oldPath)
+
+	if exist, err := FileExists(oldPath); err != nil {
+		return fmt.Errorf("file exists failed (%s): %s", oldPath, err)
+	} else if exist {
+		if err = os.Remove(oldPath); err != nil {
+			return fmt.Errorf("remove file %s failed: %s", oldPath, err)
+		}
+	}
 
 	// move the existing executable to a new file in the same directory
 	err = os.Rename(currentPath, oldPath)
