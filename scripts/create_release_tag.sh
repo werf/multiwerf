@@ -1,7 +1,6 @@
 #!/bin/bash
 
 set -e
-#set -eo pipefail -o nounset
 
 for f in $(find scripts/lib -type f -name "*.sh"); do
   source $f
@@ -18,7 +17,7 @@ CHANGELOG_TEXT=""
 EXTRA_GIT_TAG_OPTS=""
 
 if [ "$1" = ":experimental" ] ; then
-  VERSION="v$(date +%y.%m.%d-%H.%M.%S)"
+  VERSION="v$(date --utc +%y.%m.%d-%H.%M.%S)"
   BINTRAY_REPO=multiwerf-experimental
 
   echo "Creating experimental release version $VERSION"
