@@ -38,6 +38,13 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v1
 
+    - name: Build multiwerf
+      run: |
+        export GOBIN=$GITHUB_WORKSPACE
+        echo "::add-path::$GOBIN"
+        ./go-build.sh
+      shell: bash
+
     - name: Test
       run: |
         export MULTIWERF_SELF_UPDATE=no
