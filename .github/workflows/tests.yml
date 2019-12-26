@@ -17,9 +17,13 @@ jobs:
         shell: [sh, bash, cmd, powershell]
         exclude:
         - os: ubuntu-latest
-          shell: [cmd, powershell]
+          shell: cmd
+        - os: ubuntu-latest
+          shell: powershell
         - os: macOS-latest
-          shell: [cmd, powershell]
+          shell: cmd
+        - os: macOS-latest
+          shell: powershell
         - os: windows-latest
           shell: sh
 
