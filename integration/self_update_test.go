@@ -25,8 +25,9 @@ var _ = It("self-update", func() {
 	)
 
 	for _, substr := range []string{
+		"Starting multiwerf self-update ...",
 		"multiwerf dev self-update: detect version",
-		"multiwerf dev self-update: download release",
+		"multiwerf dev self-update: successfully updated to",
 	} {
 		Ω(output).Should(ContainSubstring(substr))
 	}
