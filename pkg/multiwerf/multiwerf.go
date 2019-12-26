@@ -10,41 +10,92 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/fatih/color"
-
 	"github.com/flant/shluz"
 
 	"github.com/flant/multiwerf/pkg/app"
 	"github.com/flant/multiwerf/pkg/output"
 )
 
-const UpdateLockName = "update"
-const SelfUpdateLockName = "self-update"
+var (
+	StorageDir string
+	TmpDir     string
+)
 
-var AvailableChannels = []string{
-	"alpha",
-	"beta",
-	"ea",
-	"stable",
-	"rock-solid",
+// Update checks for the actual version for group/channel and downloads it to StorageDir if it does not already exist
+//
+// Arguments:
+//
+// - group - a major.minor version to update
+// - channel - a string with channel name
+// - skipSelfUpdate - a boolean to perform self-update
+// - withCache - a boolean to try or not getting remote channel mapping
+func Update(group, channel string, skipSelfUpdate, withCache bool) (err error) {
+	printer := output.NewSimplePrint()
+
+	if err := ValidateGroup(group, printer); err != nil {
+		return err
+	}
+
+	if err := SetupStorageDir(printer); err != nil {
+		return err
+	}
+
+	if err := PerformSelfUpdate(printer, skipSelfUpdate); err != nil {
+		return err
+	}
+
+	tryRemoteChannelMapping := true
+	if withCache {
+		isLocalChannelMappingFileExist, err := isLocalChannelMappingFilePathExist()
+		if err != nil {
+			return err
+		}
+
+		tryRemoteChannelMappingDelay := DelayFile{
+			Filename: filepath.Join(StorageDir, "try-remote-channel-mapping.delay"),
+		}
+
+		if channel == "alpha" || channel == "beta" {
+			tryRemoteChannelMappingDelay.WithDelay(app.AlphaBetaUpdateDelay)
+		} else {
+			tryRemoteChannelMappingDelay.WithDelay(app.UpdateDelay)
+		}
+
+		remains := tryRemoteChannelMappingDelay.TimeRemains()
+		if remains != "" && isLocalChannelMappingFileExist {
+			PrintActionMessage(
+				ActionMessage{
+					msg:     fmt.Sprintf("multiwerf channel mapping update has been delayed: %s left till next download attempt", remains),
+					msgType: OkMsgType,
+				},
+				printer,
+			)
+
+			tryRemoteChannelMapping = false
+		} else {
+			if err := tryRemoteChannelMappingDelay.UpdateTimestamp(); err != nil {
+				return err
+			}
+		}
+	}
+
+	messages := make(chan ActionMessage, 0)
+
+	go func() {
+		UpdateChannelVersionBinary(messages, group, channel, tryRemoteChannelMapping)
+		messages <- ActionMessage{action: "exit"}
+	}()
+
+	return PrintActionMessages(messages, printer)
 }
 
-// MultiwerfStorageDir is an effective path to a storage
-var MultiwerfStorageDir string
-
-// ActionMessage is used to send messages from go routines started in use and update commands
-type ActionMessage struct {
-	stage   string // stage of a program
-	action  string // action to perform (exit with error, exit 0, ...)
-	msg     string // Text to print to the screen
-	msgType string // message type: ok, warn, fail
-	err     error  // Error message — display it in case of critical error before graceful exit
-	comment string // minor message that displayed as a comment in a script output (can be grayed)
-	debug   bool   // debug msg and comment are displayed only if --debug=yes flag is set
-}
-
-// Use prints a shell script with alias to the actual binary version for the group/channel
-// TODO make script more responsive: print messages immediately
+// Use:
+// * prints a shell script or
+// * generates a shell script file and prints the path
+//
+// The script includes two parts for defined group/version based on local channel mapping:
+// * multiwerf update procedure that will be performed on background or foreground and
+// * werf alias that uses path to the actual werf binary
 func Use(group, channel string, forceRemoteCheck, asFile bool, shell string) (err error) {
 	printer := output.NewSilentPrint()
 	if err := ValidateGroup(group, printer); err != nil {
@@ -55,8 +106,8 @@ func Use(group, channel string, forceRemoteCheck, asFile bool, shell string) (er
 		return err
 	}
 
-	useWerfPathLogPath := filepath.Join(MultiwerfStorageDir, "multiwerf_use_first_werf_path.log")
-	backgroundUpdateLogPath := filepath.Join(MultiwerfStorageDir, "background_update.log")
+	useWerfPathLogPath := filepath.Join(StorageDir, "multiwerf_use_first_werf_path.log")
+	backgroundUpdateLogPath := filepath.Join(StorageDir, "background_update.log")
 
 	var backgroundUpdateArgs []string
 	if !forceRemoteCheck {
@@ -152,10 +203,10 @@ eval "$WERF_FUNC"
 		}
 
 		fileContentBytes := []byte(fileContent)
-		dstPath := filepath.Join(MultiwerfStorageDir, "scripts", strings.Join([]string{group, channel}, "-"), filename)
+		dstPath := filepath.Join(StorageDir, "scripts", strings.Join([]string{group, channel}, "-"), filename)
 		tmpDstPath := dstPath + ".tmp"
 
-		if exist, err := FileExists(filepath.Dir(dstPath), filename); err != nil {
+		if exist, err := FileExists(dstPath); err != nil {
 			printer.Error(err)
 			return err
 		} else if exist {
@@ -194,9 +245,8 @@ eval "$WERF_FUNC"
 	return nil
 }
 
-// Print path to the actual version available for the group/channel locally
+// WerfPath prints path to the actual version available for the group/channel based on local channel mapping
 func WerfPath(group string, channel string) (err error) {
-	messages := make(chan ActionMessage, 0)
 	printer := output.NewSilentPrint()
 
 	if err := ValidateGroup(group, printer); err != nil {
@@ -208,12 +258,13 @@ func WerfPath(group string, channel string) (err error) {
 	}
 
 	var binaryInfo *BinaryInfo
-	go func() {
-		binUpdater := NewBinaryUpdater(messages, false)
-		binaryInfo = binUpdater.UpdateChannelVersion(group, channel)
+	messages := make(chan ActionMessage, 0)
 
+	go func() {
+		binaryInfo = UseChannelVersionBinary(messages, group, channel)
 		messages <- ActionMessage{action: "exit"}
 	}()
+
 	if err = PrintActionMessages(messages, printer); err != nil {
 		return err
 	}
@@ -223,9 +274,8 @@ func WerfPath(group string, channel string) (err error) {
 	return nil
 }
 
-// Exec the latest binary version available for the channel locally with passed args
+// WerfExec launches the latest binary version available for the group/channel based on local channel mapping
 func WerfExec(group, channel string, args []string) (err error) {
-	messages := make(chan ActionMessage, 0)
 	printer := output.NewSilentPrint()
 
 	if err := ValidateGroup(group, printer); err != nil {
@@ -237,12 +287,13 @@ func WerfExec(group, channel string, args []string) (err error) {
 	}
 
 	var binaryInfo *BinaryInfo
-	go func() {
-		binUpdater := NewBinaryUpdater(messages, false)
-		binaryInfo = binUpdater.UpdateChannelVersion(group, channel)
+	messages := make(chan ActionMessage, 0)
 
+	go func() {
+		binaryInfo = UseChannelVersionBinary(messages, group, channel)
 		messages <- ActionMessage{action: "exit"}
 	}()
+
 	if err = PrintActionMessages(messages, printer); err != nil {
 		return err
 	}
@@ -253,114 +304,6 @@ func WerfExec(group, channel string, args []string) (err error) {
 	cmd.Stdin = os.Stdin
 
 	return cmd.Run()
-}
-
-// Update checks for the actual version for group/channel and downloads it to StorageDir
-//
-// Arguments:
-//
-// - group - a major.minor version to update
-// - channel - a string with channel name
-//
-// This command is fully locked:
-// - if the lock is present then command exits with special message
-// - if the lock is acquired then self-update and update perform as usual
-func Update(group, channel string, withCache bool) (err error) {
-	messages := make(chan ActionMessage, 0)
-	printer := output.NewSimplePrint()
-
-	if err := ValidateGroup(group, printer); err != nil {
-		return err
-	}
-
-	if err := SetupStorageDir(printer); err != nil {
-		return err
-	}
-
-	if err := shluz.Init(filepath.Join(MultiwerfStorageDir, "locks")); err != nil {
-		printer.Error(err)
-		return err
-	}
-
-	if err := PerformSelfUpdate(printer); err != nil {
-		return err
-	}
-
-	isAcquired, err := shluz.TryLock(UpdateLockName, shluz.TryLockOptions{ReadOnly: false})
-	defer func() { _ = shluz.Unlock(UpdateLockName) }()
-	if err != nil {
-		PrintActionMessage(ActionMessage{
-			msg:     fmt.Sprintf("Cannot acquire the lock for the update command"),
-			msgType: "fail",
-		}, printer)
-		return err
-	} else {
-		if !isAcquired {
-			PrintActionMessage(
-				ActionMessage{
-					msg:     "The update was skipped because it was performing by another process",
-					msgType: "warn",
-				},
-				printer,
-			)
-
-			return nil
-		}
-	}
-
-	remoteEnabled := true
-	if withCache {
-		// Check if delay for channel is passed
-		updateDelay := UpdateDelay{
-			Filename: filepath.Join(MultiwerfStorageDir, fmt.Sprintf("update-%s-%s-%s.delay", app.BintrayPackage, group, channel)),
-		}
-
-		if channel == "alpha" || channel == "beta" {
-			updateDelay.WithDelay(app.AlphaBetaUpdateDelay)
-		} else {
-			updateDelay.WithDelay(app.UpdateDelay)
-		}
-
-		remains := updateDelay.TimeRemains()
-		if remains != "" {
-			PrintActionMessage(
-				ActionMessage{
-					msg:     fmt.Sprintf("werf update has been delayed: %s left till next attempt", remains),
-					msgType: "ok",
-				},
-				printer,
-			)
-
-			remoteEnabled = false
-		} else {
-			// If delay is passed, update delay for channel and for all less stable channels
-			for _, availableChannel := range AvailableChannels {
-				updateDelay := UpdateDelay{
-					Filename: filepath.Join(MultiwerfStorageDir, fmt.Sprintf("update-%s-%s-%s.delay", app.BintrayPackage, group, availableChannel)),
-				}
-
-				if availableChannel == "alpha" || availableChannel == "beta" {
-					updateDelay.WithDelay(app.AlphaBetaUpdateDelay)
-				} else {
-					updateDelay.WithDelay(app.UpdateDelay)
-				}
-
-				updateDelay.UpdateTimestamp()
-				if availableChannel == channel {
-					break
-				}
-			}
-		}
-	}
-
-	go func() {
-		binUpdater := NewBinaryUpdater(messages, remoteEnabled)
-		binUpdater.UpdateChannelVersion(group, channel)
-
-		messages <- ActionMessage{action: "exit"}
-	}()
-
-	return PrintActionMessages(messages, printer)
 }
 
 func ValidateGroup(group string, printer output.Printer) error {
@@ -388,193 +331,38 @@ func SetupStorageDir(printer output.Printer) error {
 
 	go func() {
 		var err error
-		MultiwerfStorageDir, err = ExpandPath(app.StorageDir)
+		StorageDir, err = ExpandPath(app.StorageDir)
 		if err != nil {
 			messages <- ActionMessage{
-				err: fmt.Errorf("invalid storage dir %s: %s", MultiwerfStorageDir, err),
+				err: fmt.Errorf("invalid storage dir %s: %s", StorageDir, err),
 			}
 		}
 
 		messages <- ActionMessage{
-			msg:   fmt.Sprintf("storage dir is %s", MultiwerfStorageDir),
+			msg:   fmt.Sprintf("storage dir is %s", StorageDir),
 			debug: true,
+		}
+
+		TmpDir = filepath.Join(StorageDir, "tmp")
+		if err := os.MkdirAll(TmpDir, 0755); err != nil {
+			messages <- ActionMessage{
+				err: fmt.Errorf("mkdir all failed %s: %s", TmpDir, err),
+			}
+		}
+
+		messages <- ActionMessage{
+			msg:   fmt.Sprintf("tmp dir is %s", TmpDir),
+			debug: true,
+		}
+
+		if err := shluz.Init(filepath.Join(StorageDir, "locks")); err != nil {
+			messages <- ActionMessage{
+				err: fmt.Errorf("init shluz failed: %s", err),
+			}
 		}
 
 		messages <- ActionMessage{action: "exit"}
 	}()
 
 	return PrintActionMessages(messages, printer)
-}
-
-// update multiwerf binary (self-update)
-func PerformSelfUpdate(printer output.Printer) (err error) {
-	messages := make(chan ActionMessage, 0)
-	selfPath := ""
-
-	go func() {
-		if app.SelfUpdate == "no" {
-			// self-update is disabled. Silently skip it
-			messages <- ActionMessage{
-				msg:     fmt.Sprintf("%s %s", app.AppName, app.Version),
-				msgType: "ok",
-			}
-
-			messages <- ActionMessage{
-				msg:   "self-update is disabled",
-				debug: true,
-			}
-
-			messages <- ActionMessage{action: "exit"}
-
-			return
-		}
-
-		// Acquire a shluz
-		isAcquired, err := shluz.TryLock(SelfUpdateLockName, shluz.TryLockOptions{ReadOnly: false})
-		defer func() { _ = shluz.Unlock(SelfUpdateLockName) }()
-		if err != nil {
-			messages <- ActionMessage{
-				msg:     fmt.Sprintf("%s %s", app.AppName, app.Version),
-				msgType: "warn",
-			}
-
-			messages <- ActionMessage{
-				msg:     fmt.Sprintf("Skip self-update: cannot acquire a lock: %v", err),
-				msgType: "warn",
-			}
-
-			messages <- ActionMessage{action: "exit"}
-
-			return
-		} else {
-			if !isAcquired {
-				messages <- ActionMessage{
-					msg:     fmt.Sprintf("%s %s", app.AppName, app.Version),
-					msgType: "ok",
-				}
-
-				messages <- ActionMessage{
-					msg:     "Self-update has been skipped because the operation is performing by another process",
-					msgType: "ok",
-				}
-
-				messages <- ActionMessage{action: "exit"}
-
-				return
-			}
-		}
-
-		if !app.Experimental {
-			// Check for delay of self update
-			selfUpdateDelay := UpdateDelay{
-				Filename: filepath.Join(MultiwerfStorageDir, "update-multiwerf.delay"),
-			}
-			selfUpdateDelay.WithDelay(app.SelfUpdateDelay)
-
-			// self update is enabled here, so check for delay and disable self update if needed
-			remains := selfUpdateDelay.TimeRemains()
-			if remains != "" {
-				messages <- ActionMessage{
-					msg:     fmt.Sprintf("%s %s", app.AppName, app.Version),
-					msgType: "ok",
-				}
-
-				messages <- ActionMessage{
-					msg:     fmt.Sprintf("Self-update has been delayed: %s left till next attempt", remains),
-					msgType: "ok",
-				}
-
-				messages <- ActionMessage{action: "exit"}
-
-				return
-			} else {
-				// FIXME: self update can be erroneous: new version exists, but with bad hash. Should we set a lower delay with progressive increase in this case?
-				selfUpdateDelay.UpdateTimestamp()
-			}
-		}
-
-		// Do self-update: check the latest version, download, replace a binary
-		messages <- ActionMessage{
-			msg:     fmt.Sprintf("%s %s", app.AppName, app.Version),
-			msgType: "ok",
-		}
-
-		messages <- ActionMessage{
-			msg:     fmt.Sprintf("Start multiwerf self-update ..."),
-			msgType: "ok",
-		}
-
-		selfPath = SelfUpdate(messages)
-
-		// Stop PrintActionMessages after return from SelfUpdate
-		messages <- ActionMessage{action: "exit"}
-	}()
-	if err := PrintActionMessages(messages, printer); err != nil {
-		return err
-	}
-
-	// restart myself if new binary was downloaded
-	if selfPath != "" {
-		err := ExecUpdatedBinary(selfPath)
-		if err != nil {
-			PrintActionMessage(
-				ActionMessage{
-					comment: "self-update error",
-					msg:     fmt.Sprintf("%s: exec of updated binary failed: %v", multiwerfProlog, err),
-					msgType: "fail",
-					stage:   "self-update",
-				},
-				printer,
-			)
-		}
-	}
-
-	return nil
-}
-
-// PrintActionMessages handle ActionMessage events and print messages with printer object
-func PrintActionMessages(messages chan ActionMessage, printer output.Printer) error {
-	for {
-		select {
-		case msg := <-messages:
-			PrintActionMessage(msg, printer)
-			if msg.err != nil {
-				// TODO add special error to exit with 1 and not print error message with kingpin
-				return msg.err
-			}
-
-			if msg.action == "exit" {
-				return nil
-			}
-		}
-	}
-}
-
-func PrintActionMessage(msg ActionMessage, printer output.Printer) {
-	if msg.err != nil {
-		printer.Error(msg.err)
-		return
-	}
-
-	// ignore debug messages if no --debug=yes flag
-	if msg.debug {
-		if app.DebugMessages == "yes" && msg.msg != "" {
-			printer.DebugMessage(msg.msg, msg.comment)
-		}
-		return
-	}
-
-	if msg.msg != "" {
-		var colorAttribute *color.Attribute
-		switch msg.msgType {
-		case "ok":
-			colorAttribute = &output.GreenColor
-		case "warn":
-			colorAttribute = &output.YellowColor
-		case "fail":
-			colorAttribute = &output.RedColor
-		}
-
-		printer.Message(msg.msg, colorAttribute, msg.comment)
-	}
 }
