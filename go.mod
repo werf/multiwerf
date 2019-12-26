@@ -10,6 +10,9 @@ require (
 	github.com/flant/shluz v0.0.0-20191223174507-c6152b298d53
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/mattn/go-isatty v0.0.10
+	github.com/onsi/ginkgo v1.11.0
+	github.com/onsi/gomega v1.8.1
+	github.com/otiai10/copy v1.0.2
 	github.com/stretchr/testify v1.4.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )
