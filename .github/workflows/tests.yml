@@ -40,21 +40,41 @@ jobs:
       uses: actions/checkout@v1
 
     - name: Test
-      run: go test ./...
+      run: |
+        export MULTIWERF_INTEGRATION_USE_SHELL=${{ matrix.shell }}
+        go test ./...
+
+        . $(multiwerf use 1.0 stable --shell default --as-file)
+        werf
       shell: sh
       if: matrix.shell == 'sh'
 
     - name: Test
-      run: go test ./...
+      run: |
+        export MULTIWERF_INTEGRATION_USE_SHELL=${{ matrix.shell }}
+        go test ./...
+
+        . $(multiwerf use 1.0 stable --shell default --as-file)
+        werf
       shell: bash
       if: matrix.shell == 'bash'
 
     - name: Test
-      run: go test ./...
+      run: |
+        # go test ./...
+
+        FOR /F "tokens=*" %g IN ('multiwerf use 1.0 stable --as-file --shell cmdexe') do (SET WERF_USE_SCRIPT_PATH=%g)
+        %WERF_USE_SCRIPT_PATH%
+        werf
       shell: cmd
       if: matrix.shell == 'cmd'
 
     - name: Test
-      run: go test ./...
+      run: |
+        # go test ./...
+
+        Invoke-Expression -Command "multiwerf use 1.0 stable --as-file --shell powershell" | Out-String -OutVariable WERF_USE_SCRIPT_PATH
+        . $WERF_USE_SCRIPT_PATH.Trim()
+        werf
       shell: powershell
       if: matrix.shell == 'powershell'
