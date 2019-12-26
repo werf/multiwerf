@@ -145,7 +145,7 @@ func UseChannelVersionBinary(messages chan ActionMessage, group string, channel 
 // downloadAndVerifyReleaseFiles downloads release files and verifies them.
 // If files are good then creates version directory and moves files there
 func downloadAndVerifyReleaseFiles(messages chan ActionMessage, version string, btClient bintray.BintrayClient) (binInfo *BinaryInfo, err error) {
-	tmpDir, err := ioutil.TempDir(TmpDir, version)
+	tmpDir, err := ioutil.TempDir(TmpDir, version+"-")
 	if err != nil {
 		return nil, fmt.Errorf("create tmp dir failed: %s", err)
 	}
