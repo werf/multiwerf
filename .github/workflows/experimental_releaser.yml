@@ -12,16 +12,13 @@ jobs:
       run: |
         set -e
 
-        git clone https://$EXPERIMENTAL_RELEASER_USER_NAME:$EXPERIMENTAL_RELEASER_PASSWORD@github.com/flant/multiwerf.git
+        echo "Setting up multiwerf git repo ..."
+        git clone https://flant-team-sysdev:${{ secrets.FLANT_TEAM_SYSDEV_TOKEN }}@github.com/flant/multiwerf.git
         cd multiwerf
         git -c advice.detachedHead=false checkout $GITHUB_SHA
+        git config user.name flant-team-sysdev
+        git config user.email team-sysdev+github@notice.flant.com
 
-        git config user.name $EXPERIMENTAL_RELEASER_USER_NAME
-        git config user.email $EXPERIMENTAL_RELEASER_USER_EMAIL
-
+        echo "Releasing experimental tag ..."
         ./scripts/create_release_tag.sh :experimental
       shell: bash
-      env:
-        EXPERIMENTAL_RELEASER_USER_NAME: ${{ secrets.EXPERIMENTAL_RELEASER_USER_NAME }}
-        EXPERIMENTAL_RELEASER_USER_PASSWORD: ${{ secrets.EXPERIMENTAL_RELEASER_USER_PASSWORD }}
-        EXPERIMENTAL_RELEASER_USER_EMAIL: ${{ secrets.EXPERIMENTAL_RELEASER_USER_EMAIL }}
