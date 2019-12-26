@@ -14,6 +14,14 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macOS-latest, windows-latest]
+        include:
+        - os: ubuntu-latest
+          shell: [sh, bash]
+        - os: macOS-latest
+          shell: [sh, bash]
+        - os: windows-latest
+          shell: [bash, cmd, powershell]
+
     runs-on: ${{ matrix.os }}
     steps:
 
@@ -28,4 +36,4 @@ jobs:
 
       - name: Test
         run: go test ./...
-        shell: bash
+        shell: ${{ matrix.shell }}
