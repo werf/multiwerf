@@ -1,5 +1,5 @@
 BASE_NAME=multiwerf
-#BINTRAY_AUTH=                        # bintray auth user:TOKEN
+#PUBLISH_BINTRAY_AUTH=                        # bintray auth user:TOKEN
 BINTRAY_SUBJECT=flant                # bintray organization
 BINTRAY_REPO=multiwerf-experimental  # bintray repository
 BINTRAY_PACKAGE=multiwerf            # bintray package in repository
@@ -17,7 +17,7 @@ JSON
   curlResponse=$(mktemp)
   status=$(curl -s -w '%{http_code}' -o "$curlResponse" \
       --request POST \
-      --user "$BINTRAY_AUTH" \
+      --user "$PUBLISH_BINTRAY_AUTH" \
       --header "Content-type: application/json" \
       --data "$PAYLOAD" \
       "https://api.bintray.com/packages/${BINTRAY_SUBJECT}/${BINTRAY_REPO}/${BINTRAY_PACKAGE}/versions"
@@ -50,7 +50,7 @@ bintray_upload_file_into_version() {
       --header "X-Bintray-Version: $VERSION" \
       --header "Content-type: application/binary" \
       --request PUT \
-      --user "$BINTRAY_AUTH" \
+      --user "$PUBLISH_BINTRAY_AUTH" \
       --upload-file "$UPLOAD_FILE_PATH" \
       "https://api.bintray.com/content/${BINTRAY_SUBJECT}/${BINTRAY_REPO}/$DESTINATION_PATH"
   )
@@ -78,7 +78,7 @@ bintray_publish_files_in_version() {
   curlResponse=$(mktemp)
   status=$(curl -s -w '%{http_code}' -o "$curlResponse" \
       --request POST \
-      --user "$BINTRAY_AUTH" \
+      --user "$PUBLISH_BINTRAY_AUTH" \
       --header "Content-type: application/json" \
       "https://api.bintray.com/content/${BINTRAY_SUBJECT}/${BINTRAY_REPO}/${BINTRAY_PACKAGE}/${VERSION}/publish"
   )
