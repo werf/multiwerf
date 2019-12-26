@@ -14,13 +14,14 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macOS-latest, windows-latest]
-        include:
+        shell: [sh, bash, cmd, powershell]
+        exclude:
         - os: ubuntu-latest
-          shell: [sh, bash]
+          shell: [cmd, powershell]
         - os: macOS-latest
-          shell: [sh, bash]
+          shell: [cmd, powershell]
         - os: windows-latest
-          shell: [bash, cmd, powershell]
+          shell: sh
 
     runs-on: ${{ matrix.os }}
     steps:
