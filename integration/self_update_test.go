@@ -21,7 +21,7 @@ var _ = It("self-update", func() {
 	output := utils.SucceedCommandOutputString(
 		testDirPath,
 		multiwerfBinPath,
-		[]string{"update", "1.0", "alpha"}...,
+		[]string{"update", "1.0"}...,
 	)
 
 	for _, substr := range []string{
