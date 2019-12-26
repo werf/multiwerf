@@ -41,4 +41,20 @@ jobs:
 
     - name: Test
       run: go test ./...
-      shell: ${{ matrix.shell }}
+      shell: sh
+      if: matrix.shell == 'sh'
+
+    - name: Test
+      run: go test ./...
+      shell: bash
+      if: matrix.shell == 'bash'
+
+    - name: Test
+      run: go test ./...
+      shell: cmd
+      if: matrix.shell == 'cmd'
+
+    - name: Test
+      run: go test ./...
+      shell: powershell
+      if: matrix.shell == 'powershell'
