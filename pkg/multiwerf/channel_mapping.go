@@ -1,18 +1,22 @@
 package multiwerf
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/flant/multiwerf/pkg/app"
 )
 
-const LocalChannelMappingFilename = "multiwerf.json"
+const DefaultLocalChannelMappingFilename = "multiwerf.json"
 
 type ChannelMapping interface {
-	GetChannelVersion(group, channel string) (string, error)
+	ChannelVersion(group, channel string) (string, error)
 	Save() error
 }
 
@@ -26,7 +30,7 @@ type ChannelMappingBase struct {
 	} `json:"multiwerf"`
 }
 
-func (c *ChannelMappingBase) GetChannelVersion(group, channel string) (string, error) {
+func (c *ChannelMappingBase) ChannelVersion(group, channel string) (string, error) {
 	for _, g := range c.Multiwerf {
 		if g.Group == group {
 			for _, c := range g.Channels {
@@ -60,9 +64,45 @@ func (c *ChannelMappingRemote) Save() error {
 
 	data = append(data, []byte("\n")...)
 
-	if err := ioutil.WriteFile(localChannelMappingFilePath(), data, os.ModePerm); err != nil {
+	localChannelMappingFilePath := defaultLocalChannelMappingFilePath()
+	if exist, err := FileExists(localChannelMappingFilePath); err != nil {
+		return fmt.Errorf("file exists failed %s: %s", localChannelMappingFilePath, err)
+	} else if exist {
+		currentData, err := ioutil.ReadFile(localChannelMappingFilePath)
+		if err != nil {
+			return fmt.Errorf("read file failed %s: %s", localChannelMappingFilePath, err)
+		}
+
+		if bytes.Equal(currentData, data) {
+			return nil
+		}
+	}
+
+	tmpFile, err := ioutil.TempFile(TmpDir, "channel_mapping")
+	if err != nil {
+		return fmt.Errorf("create tmp file failed: %s", err)
+	}
+
+	shouldBeDeleted := true
+	defer func() {
+		if shouldBeDeleted {
+			_ = os.Remove(tmpFile.Name())
+		}
+	}()
+
+	if _, err := tmpFile.Write(data); err != nil {
+		return fmt.Errorf("write to tmp file failed %s: %s", tmpFile.Name(), err)
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Errorf("close tmp file failed %s: %s", tmpFile.Name(), err)
+	}
+
+	if err := os.Rename(tmpFile.Name(), localChannelMappingFilePath); err != nil {
 		return err
 	}
+
+	shouldBeDeleted = false
 
 	return nil
 }
@@ -70,7 +110,7 @@ func (c *ChannelMappingRemote) Save() error {
 func newRemoteChannelMapping(channelMappingUrl string) (*ChannelMappingRemote, error) {
 	resp, err := http.Get(channelMappingUrl)
 	if err != nil {
-		return nil, fmt.Errorf("httpGet url failed: %s", err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
@@ -92,7 +132,7 @@ func newRemoteChannelMapping(channelMappingUrl string) (*ChannelMappingRemote, e
 }
 
 func newLocalChannelMapping(channelMappingPath string) (*ChannelMappingLocal, error) {
-	if exist, err := FileExists(filepath.Dir(channelMappingPath), filepath.Base(channelMappingPath)); err != nil {
+	if exist, err := FileExists(channelMappingPath); err != nil {
 		return nil, fmt.Errorf("file exists failed: %s", err)
 	} else if !exist {
 		return nil, fmt.Errorf("file %s is not found", channelMappingPath)
@@ -108,18 +148,51 @@ func newLocalChannelMapping(channelMappingPath string) (*ChannelMappingLocal, er
 		return nil, fmt.Errorf("unmarshal json failed: %s", err)
 	}
 
-	return channelMapping, nil
+	return channelMapping, err
 }
 
-func localChannelMappingFilePath() string {
-	return filepath.Join(MultiwerfStorageDir, LocalChannelMappingFilename)
+func defaultLocalChannelMappingFilePath() string {
+	return filepath.Join(StorageDir, DefaultLocalChannelMappingFilename)
 }
 
-func isLocalChannelMappingExist() bool {
-	exist, err := FileExists(filepath.Dir(localChannelMappingFilePath()), filepath.Base(localChannelMappingFilePath()))
-	if err != nil {
-		panic(fmt.Errorf("file exists failed: %s", localChannelMappingFilePath()))
+func isLocalChannelMappingFilePathExist() (bool, error) {
+	localChannelMappingPath := defaultLocalChannelMappingFilePath()
+	if app.ChannelMappingPath != "" {
+		localChannelMappingPath = app.ChannelMappingPath
 	}
 
-	return exist
+	return FileExists(localChannelMappingPath)
+}
+
+func GetChannelMapping(messages chan ActionMessage, tryRemoteChannelMapping bool) (ChannelMapping, error) {
+	if tryRemoteChannelMapping {
+		channelMapping, err := newRemoteChannelMapping(app.ChannelMappingUrl)
+		if err != nil {
+			messages <- ActionMessage{
+				msg:     fmt.Sprintf("Get remote channel mapping from %s failed: %s", app.ChannelMappingUrl, err),
+				msgType: WarnMsgType,
+			}
+		}
+
+		return channelMapping, nil
+	}
+
+	localChannelMappingPath := defaultLocalChannelMappingFilePath()
+	if app.ChannelMappingPath != "" {
+		localChannelMappingPath = app.ChannelMappingPath
+	}
+
+	if tryRemoteChannelMapping {
+		messages <- ActionMessage{
+			msg:     fmt.Sprintf("Trying to get the local channel mapping from %s ...", localChannelMappingPath),
+			msgType: WarnMsgType,
+		}
+	}
+
+	channelMapping, err := newLocalChannelMapping(localChannelMappingPath)
+	if err != nil {
+		return nil, fmt.Errorf("get the local channel mapping failed: %s\nRun command `multiwerf update %s` to download the actual one", err, strings.Join(os.Args[2:], " "))
+	}
+
+	return channelMapping, nil
 }
