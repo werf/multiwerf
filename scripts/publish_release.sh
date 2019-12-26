@@ -11,13 +11,13 @@ done
 main() {
   parse_args "$@" || (usage && exit 1)
 
-  if [[ -z $BINTRAY_AUTH ]] ; then
-    echo "BINTRAY_AUTH token required!" >&2
+  if [[ -z $PUBLISH_BINTRAY_AUTH ]] ; then
+    echo "PUBLISH_BINTRAY_AUTH token required!" >&2
     exit 1
   fi
 
-  if [[ -z $GITHUB_TOKEN ]] ; then
-    echo "GITHUB_TOKEN token required!" >&2
+  if [[ -z $PUBLISH_GITHUB_TOKEN ]] ; then
+    echo "PUBLISH_GITHUB_TOKEN token required!" >&2
     exit 1
   fi
 
@@ -119,11 +119,11 @@ parse_args() {
         shift
         ;;
       --github-token)
-        GITHUB_TOKEN="$2"
+        PUBLISH_GITHUB_TOKEN="$2"
         shift
         ;;
       --bintray-auth)
-        BINTRAY_AUTH="$2"
+        PUBLISH_BINTRAY_AUTH="$2"
         shift
         ;;
       --help|-h)

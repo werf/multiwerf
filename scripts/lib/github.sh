@@ -1,4 +1,4 @@
-#GITHUB_TOKEN=         # github API token
+#PUBLISH_GITHUB_TOKEN=         # github API token
 GITHUB_OWNER=flant     # github user/org
 GITHUB_REPO=multiwerf  # github repository
 GITHUB_RELEASE_ID=
@@ -20,7 +20,7 @@ JSON
   local curlResponse=$(mktemp)
   local status=$(curl -s -w '%{http_code}' -o "$curlResponse" \
       --request POST \
-      --header "Authorization: token $GITHUB_TOKEN" \
+      --header "Authorization: token $PUBLISH_GITHUB_TOKEN" \
       --header "Accept: application/vnd.github.v3+json" \
       --data "$GHPAYLOAD" \
       "https://api.github.com/repos/$GITHUB_OWNER/$GITHUB_REPO/releases"
@@ -49,7 +49,7 @@ github_upload_asset_for_release() {
 
   curlResponse=$(mktemp)
   status=$(curl -s -w '%{http_code}' -L -o "$curlResponse" \
-      --header "Authorization: token $GITHUB_TOKEN" \
+      --header "Authorization: token $PUBLISH_GITHUB_TOKEN" \
       --header "Accept: application/vnd.github.v3+json" \
       --header "Content-type: application/binary" \
       --request POST \
