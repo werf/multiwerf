@@ -25,7 +25,7 @@ if [ "$1" = ":experimental" ] ; then
   CHANGELOG_TEXT="Experimental release."
 else
   VERSION=$1
-  BINTRAY_REPO=multiwerf-nonexistent # FIXME: remove durak-guard just before release when master will be ready for stable
+  BINTRAY_REPO=multiwerf
 
   LATEST_TAG="$(git tag -l --sort=-taggerdate | head -n1)"
   CHANGELOG_TEXT="$(git log --pretty="%s" HEAD...${LATEST_TAG})"
