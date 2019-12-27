@@ -23,11 +23,12 @@ var (
 )
 
 type UpdateOptions struct {
-	SkipSelfUpdate bool
-	WithCache      bool
+	SkipSelfUpdate          bool
+	TryRemoteChannelMapping bool
+	WithCache               bool
 }
 
-// Update checks for the actual version for group/channel and downloads it to StorageDir if it does not already exist
+// TryRemoteChannelMapping checks for the actual version for group/channel and downloads it to StorageDir if it does not already exist
 //
 // Arguments:
 //
@@ -50,13 +51,32 @@ func Update(group, channel string, options UpdateOptions) (err error) {
 		return err
 	}
 
-	tryRemoteChannelMapping := true
-	if options.WithCache {
-		isLocalChannelMappingFileExist, err := isLocalChannelMappingFilePathExist()
-		if err != nil {
-			return err
-		}
+	tryRemoteChannelMapping, err := processTryRemoteChannelMapping(printer, channel, options.WithCache, options.TryRemoteChannelMapping)
+	if err != nil {
+		return err
+	}
 
+	messages := make(chan ActionMessage, 0)
+
+	go func() {
+		UpdateChannelVersionBinary(messages, group, channel, tryRemoteChannelMapping)
+		messages <- ActionMessage{action: "exit"}
+	}()
+
+	return PrintActionMessages(messages, printer)
+}
+
+func processTryRemoteChannelMapping(printer output.Printer, channel string, withCache, tryRemoteChannelMapping bool) (bool, error) {
+	isLocalChannelMappingFileExist, err := isLocalChannelMappingFileExist()
+	if err != nil {
+		return false, err
+	}
+
+	if !isLocalChannelMappingFileExist {
+		tryRemoteChannelMapping = true
+	}
+
+	if withCache {
 		tryRemoteChannelMappingDelay := DelayFile{
 			Filename: filepath.Join(StorageDir, "try-remote-channel-mapping.delay"),
 		}
@@ -80,25 +100,19 @@ func Update(group, channel string, options UpdateOptions) (err error) {
 			tryRemoteChannelMapping = false
 		} else {
 			if err := tryRemoteChannelMappingDelay.UpdateTimestamp(); err != nil {
-				return err
+				return false, err
 			}
 		}
 	}
 
-	messages := make(chan ActionMessage, 0)
-
-	go func() {
-		UpdateChannelVersionBinary(messages, group, channel, tryRemoteChannelMapping)
-		messages <- ActionMessage{action: "exit"}
-	}()
-
-	return PrintActionMessages(messages, printer)
+	return tryRemoteChannelMapping, nil
 }
 
 type UseOptions struct {
-	ForceRemoteCheck bool
-	AsFile           bool
-	SkipSelfUpdate   bool
+	ForceRemoteCheck        bool
+	AsFile                  bool
+	SkipSelfUpdate          bool
+	TryRemoteChannelMapping bool
 }
 
 // Use:
@@ -125,6 +139,10 @@ func Use(group, channel string, shell string, options UseOptions) (err error) {
 	commonUpdateArgs := groupAndChannelArgs[0:]
 	if options.SkipSelfUpdate {
 		commonUpdateArgs = append(commonUpdateArgs, "--self-update=no")
+	}
+
+	if !options.TryRemoteChannelMapping {
+		commonUpdateArgs = append(commonUpdateArgs, "--update=no")
 	}
 
 	foregroundUpdateArgs := commonUpdateArgs[0:]

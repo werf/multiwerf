@@ -31,6 +31,7 @@ var (
 		"stable",
 		"rock-solid",
 	}
+	updateHelp     = "Try to download remote channel mapping and sync channel werf version. To disable set to 'no'."
 	selfUpdateHelp = "Perform multiwerf self-update. To disable set to 'no'."
 )
 
@@ -50,6 +51,7 @@ func main() {
 
 	var groupStr string
 	var channelStr string
+	var update = "yes"
 	var selfUpdate = "yes"
 	var forceRemoteCheck bool
 	var shell = "default"
@@ -63,8 +65,9 @@ func main() {
 			channelStr = normalizeChannel(channelStr)
 
 			options := multiwerf.UpdateOptions{
-				SkipSelfUpdate: selfUpdate == "no",
-				WithCache:      withCache,
+				SkipSelfUpdate:          selfUpdate == "no",
+				WithCache:               withCache,
+				TryRemoteChannelMapping: update == "yes",
 			}
 
 			// TODO add special error to exit with 1 and not print error message with kingpin
@@ -88,6 +91,10 @@ func main() {
 		Envar("MULTIWERF_SELF_UPDATE").
 		Default(selfUpdate).
 		StringVar(&selfUpdate)
+	updateCmd.Flag("update", updateHelp).
+		Envar("MULTIWERF_UPDATE").
+		Default(update).
+		StringVar(&update)
 
 	// multiwerf use
 	useCmd := kpApp.
@@ -96,9 +103,10 @@ func main() {
 			channelStr = normalizeChannel(channelStr)
 
 			options := multiwerf.UseOptions{
-				ForceRemoteCheck: forceRemoteCheck,
-				AsFile:           asFile,
-				SkipSelfUpdate:   selfUpdate == "no",
+				ForceRemoteCheck:        forceRemoteCheck,
+				AsFile:                  asFile,
+				SkipSelfUpdate:          selfUpdate == "no",
+				TryRemoteChannelMapping: update == "yes",
 			}
 
 			if err := multiwerf.Use(groupStr, channelStr, shell, options); err != nil {
@@ -126,6 +134,10 @@ func main() {
 		Envar("MULTIWERF_SELF_UPDATE").
 		Default(selfUpdate).
 		StringVar(&selfUpdate)
+	useCmd.Flag("update", updateHelp).
+		Envar("MULTIWERF_UPDATE").
+		Default(update).
+		StringVar(&update)
 
 	// multiwerf werf-path
 	werfPathCmd := kpApp.

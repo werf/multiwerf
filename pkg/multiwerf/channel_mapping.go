@@ -155,7 +155,7 @@ func defaultLocalChannelMappingFilePath() string {
 	return filepath.Join(StorageDir, DefaultLocalChannelMappingFilename)
 }
 
-func isLocalChannelMappingFilePathExist() (bool, error) {
+func isLocalChannelMappingFileExist() (bool, error) {
 	localChannelMappingPath := defaultLocalChannelMappingFilePath()
 	if app.ChannelMappingPath != "" {
 		localChannelMappingPath = app.ChannelMappingPath
