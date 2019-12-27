@@ -158,16 +158,16 @@ func downloadAndVerifyReleaseFiles(messages chan ActionMessage, version string, 
 		msgType: OkMsgType,
 	}
 
-	if err = btClient.DownloadFiles(version, tmpDir, files); err != nil {
-		return nil, err
-	}
-
 	shouldBeRemoved := true
 	defer func() {
 		if shouldBeRemoved {
 			_ = os.RemoveAll(tmpDir)
 		}
 	}()
+
+	if err = btClient.DownloadFiles(version, tmpDir, files); err != nil {
+		return nil, err
+	}
 
 	if err = os.Chmod(filepath.Join(tmpDir, files["program"]), 0755); err != nil {
 		return nil, fmt.Errorf("chmod 755 failed for %s: %v", files["program"], err)

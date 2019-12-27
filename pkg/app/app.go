@@ -31,7 +31,6 @@ var ChannelMappingPath string
 
 var DebugMessages = "no"
 var DebugMessagesFakeVar = "no"
-var SelfUpdate = "yes"
 var Update = "yes"
 
 // An hour delay between checks for the latest version of werf
@@ -45,16 +44,6 @@ var SelfUpdateDelay = 2 * time.Hour
 
 // SetupGlobalSettings init global flags with default values
 func SetupGlobalSettings(kpApp *kingpin.Application) {
-	kpApp.Flag("self-update", "set to `no' to disable self update in use and update command").
-		Envar("MULTIWERF_SELF_UPDATE").
-		Default(SelfUpdate).
-		StringVar(&SelfUpdate)
-
-	kpApp.Flag("update", "set to `no' to disable werf update in use and update command").
-		Envar("MULTIWERF_UPDATE").
-		Default(Update).
-		StringVar(&Update)
-
 	kpApp.Flag("experimental", "allow self-update to experimental multiwerf").
 		Hidden().
 		Envar("MULTIWERF_EXPERIMENTAL").
@@ -71,23 +60,41 @@ func SetupGlobalSettings(kpApp *kingpin.Application) {
 		Default(ChannelMappingPath).
 		StringVar(&ChannelMappingPath)
 
-	kpApp.Flag("bintray-subject", "The subject part for bintray api.").
+	kpApp.Flag("bintray-subject", "The subject part for bintray api to download werf release files.").
 		Hidden().
 		Envar("MULTIWERF_BINTRAY_SUBJECT").
-		Default(ChannelMappingPath).
-		StringVar(&ChannelMappingPath)
+		Default(BintraySubject).
+		StringVar(&BintraySubject)
 
-	kpApp.Flag("bintray-repo", "The repository part for bintray api.").
+	kpApp.Flag("bintray-repo", "The repository part for bintray api to download werf release files.").
 		Hidden().
 		Envar("MULTIWERF_BINTRAY_REPO").
 		Default(BintrayRepo).
 		StringVar(&BintrayRepo)
 
-	kpApp.Flag("bintray-package", "The package part for bintray api.").
+	kpApp.Flag("bintray-package", "The package part for bintray api to download werf release files.").
 		Hidden().
 		Envar("MULTIWERF_BINTRAY_PACKAGE").
 		Default(BintrayPackage).
 		StringVar(&BintrayPackage)
+
+	kpApp.Flag("multiwerf-bintray-subject", "The subject part for bintray api to download multiwerf release files.").
+		Hidden().
+		Envar("MULTIWERF_SELF_BINTRAY_SUBJECT").
+		Default(SelfBintraySubject).
+		StringVar(&SelfBintraySubject)
+
+	kpApp.Flag("multiwerf-bintray-repo", "The repository part for bintray api to download multiwerf release files.").
+		Hidden().
+		Envar("MULTIWERF_SELF_BINTRAY_REPO").
+		Default(SelfBintrayRepo).
+		StringVar(&SelfBintrayRepo)
+
+	kpApp.Flag("multiwerf-bintray-package", "The package part for bintray api to download multiwerf release files.").
+		Hidden().
+		Envar("MULTIWERF_SELF_BINTRAY_PACKAGE").
+		Default(SelfBintrayPackage).
+		StringVar(&SelfBintrayPackage)
 
 	// Default for os-arch is set at compile time
 	kpApp.Flag("os-arch", "The pair of os and arch of binary separated by dash").

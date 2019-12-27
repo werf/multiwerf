@@ -14,7 +14,8 @@ import (
 var (
 	groupHelp        = "Selector of a release series. Examples: 1.0, 1.3."
 	groupHintOptions = []string{"1.0", "1.3"}
-	channels         = []string{
+
+	channels = []string{
 		"alpha",
 		"beta",
 		"ea",
@@ -31,6 +32,10 @@ var (
 		"stable",
 		"rock-solid",
 	}
+
+	updateHelp = "Try to download remote channel mapping and sync channel werf version. To disable set to 'no'."
+
+	selfUpdateHelp = "Perform multiwerf self-update. To disable set to 'no'."
 )
 
 func main() {
@@ -49,6 +54,8 @@ func main() {
 
 	var groupStr string
 	var channelStr string
+	var update = "yes"
+	var selfUpdate = "yes"
 	var forceRemoteCheck bool
 	var shell = "default"
 	var withCache bool
@@ -59,13 +66,18 @@ func main() {
 		Command("update", "Perform self-update and download the actual channel werf binary.").
 		Action(func(c *kingpin.ParseContext) error {
 			channelStr = normalizeChannel(channelStr)
-			skipSelfUpdate := (app.SelfUpdate == "no")
+
+			options := multiwerf.UpdateOptions{
+				SkipSelfUpdate:          selfUpdate == "no",
+				WithCache:               withCache,
+				TryRemoteChannelMapping: update == "yes",
+			}
 
 			// TODO add special error to exit with 1 and not print error message with kingpin
-			err := multiwerf.Update(groupStr, channelStr, skipSelfUpdate, withCache)
-			if err != nil {
+			if err := multiwerf.Update(groupStr, channelStr, options); err != nil {
 				os.Exit(1)
 			}
+
 			return nil
 		})
 	updateCmd.Arg("MAJOR.MINOR", groupHelp).
@@ -78,6 +90,14 @@ func main() {
 		EnumVar(&channelStr, channelEnum...)
 	updateCmd.Flag("with-cache", "Cache remote channel mapping between updates.").
 		BoolVar(&withCache)
+	updateCmd.Flag("self-update", selfUpdateHelp).
+		Envar("MULTIWERF_SELF_UPDATE").
+		Default(selfUpdate).
+		StringVar(&selfUpdate)
+	updateCmd.Flag("update", updateHelp).
+		Envar("MULTIWERF_UPDATE").
+		Default(update).
+		StringVar(&update)
 
 	// multiwerf use
 	useCmd := kpApp.
@@ -85,10 +105,17 @@ func main() {
 		Action(func(c *kingpin.ParseContext) error {
 			channelStr = normalizeChannel(channelStr)
 
-			err := multiwerf.Use(groupStr, channelStr, forceRemoteCheck, asFile, shell)
-			if err != nil {
+			options := multiwerf.UseOptions{
+				ForceRemoteCheck:        forceRemoteCheck,
+				AsFile:                  asFile,
+				SkipSelfUpdate:          selfUpdate == "no",
+				TryRemoteChannelMapping: update == "yes",
+			}
+
+			if err := multiwerf.Use(groupStr, channelStr, shell, options); err != nil {
 				os.Exit(1)
 			}
+
 			return nil
 		})
 	useCmd.Arg("MAJOR.MINOR", groupHelp).
@@ -106,6 +133,14 @@ func main() {
 		EnumVar(&shell, []string{"default", "cmdexe", "powershell"}...)
 	useCmd.Flag("as-file", "Create the script and print the path for sourcing.").
 		BoolVar(&asFile)
+	useCmd.Flag("self-update", selfUpdateHelp).
+		Envar("MULTIWERF_SELF_UPDATE").
+		Default(selfUpdate).
+		StringVar(&selfUpdate)
+	useCmd.Flag("update", updateHelp).
+		Envar("MULTIWERF_UPDATE").
+		Default(update).
+		StringVar(&update)
 
 	// multiwerf werf-path
 	werfPathCmd := kpApp.

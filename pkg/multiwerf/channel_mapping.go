@@ -174,7 +174,9 @@ func GetChannelMapping(messages chan ActionMessage, tryRemoteChannelMapping bool
 			}
 		}
 
-		return channelMapping, nil
+		if channelMapping != nil {
+			return channelMapping, nil
+		}
 	}
 
 	localChannelMappingPath := defaultLocalChannelMappingFilePath()
@@ -184,7 +186,7 @@ func GetChannelMapping(messages chan ActionMessage, tryRemoteChannelMapping bool
 
 	if tryRemoteChannelMapping {
 		messages <- ActionMessage{
-			msg:     fmt.Sprintf("Trying to get the local channel mapping from %s ...", localChannelMappingPath),
+			msg:     fmt.Sprintf("Trying to get the local channel mapping %s ...", localChannelMappingPath),
 			msgType: WarnMsgType,
 		}
 	}
