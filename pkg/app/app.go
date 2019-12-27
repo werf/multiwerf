@@ -30,6 +30,7 @@ var ChannelMappingUrl = "https://raw.githubusercontent.com/flant/werf/multiwerf/
 var ChannelMappingPath string
 
 var DebugMessages = "no"
+var DebugMessagesFakeVar = "no"
 var SelfUpdate = "yes"
 var Update = "yes"
 
@@ -103,8 +104,8 @@ func SetupGlobalSettings(kpApp *kingpin.Application) {
 
 	kpApp.Flag("debug", "Set to 'yes' to turn on debug messages.").
 		Envar("MULTIWERF_DEBUG").
-		Default(DebugMessages).
-		StringVar(&DebugMessages)
+		Default(DebugMessagesFakeVar).
+		StringVar(&DebugMessagesFakeVar)
 
 	// Render help for hidden flags
 	kpApp.Flag("help-advanced", "Show help for advanced flags.").PreAction(func(context *kingpin.ParseContext) error {
