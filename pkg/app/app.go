@@ -31,7 +31,6 @@ var ChannelMappingPath string
 
 var DebugMessages = "no"
 var DebugMessagesFakeVar = "no"
-var SelfUpdate = "yes"
 var Update = "yes"
 
 // An hour delay between checks for the latest version of werf
@@ -45,11 +44,6 @@ var SelfUpdateDelay = 2 * time.Hour
 
 // SetupGlobalSettings init global flags with default values
 func SetupGlobalSettings(kpApp *kingpin.Application) {
-	kpApp.Flag("self-update", "set to `no' to disable self update in use and update command").
-		Envar("MULTIWERF_SELF_UPDATE").
-		Default(SelfUpdate).
-		StringVar(&SelfUpdate)
-
 	kpApp.Flag("update", "set to `no' to disable werf update in use and update command").
 		Envar("MULTIWERF_UPDATE").
 		Default(Update).

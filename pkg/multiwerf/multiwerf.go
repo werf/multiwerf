@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 
@@ -21,15 +22,20 @@ var (
 	TmpDir     string
 )
 
+type UpdateOptions struct {
+	SkipSelfUpdate bool
+	WithCache      bool
+}
+
 // Update checks for the actual version for group/channel and downloads it to StorageDir if it does not already exist
 //
 // Arguments:
 //
 // - group - a major.minor version to update
 // - channel - a string with channel name
-// - skipSelfUpdate - a boolean to perform self-update
-// - withCache - a boolean to try or not getting remote channel mapping
-func Update(group, channel string, skipSelfUpdate, withCache bool) (err error) {
+// - options.SkipSelfUpdate - a boolean to perform self-update
+// - options.WithCache - a boolean to try or not getting remote channel mapping
+func Update(group, channel string, options UpdateOptions) (err error) {
 	printer := output.NewSimplePrint()
 
 	if err := ValidateGroup(group, printer); err != nil {
@@ -40,12 +46,12 @@ func Update(group, channel string, skipSelfUpdate, withCache bool) (err error) {
 		return err
 	}
 
-	if err := PerformSelfUpdate(printer, skipSelfUpdate); err != nil {
+	if err := PerformSelfUpdate(printer, options.SkipSelfUpdate); err != nil {
 		return err
 	}
 
 	tryRemoteChannelMapping := true
-	if withCache {
+	if options.WithCache {
 		isLocalChannelMappingFileExist, err := isLocalChannelMappingFilePathExist()
 		if err != nil {
 			return err
@@ -89,6 +95,12 @@ func Update(group, channel string, skipSelfUpdate, withCache bool) (err error) {
 	return PrintActionMessages(messages, printer)
 }
 
+type UseOptions struct {
+	ForceRemoteCheck bool
+	AsFile           bool
+	SkipSelfUpdate   bool
+}
+
 // Use:
 // * prints a shell script or
 // * generates a shell script file and prints the path
@@ -96,7 +108,7 @@ func Update(group, channel string, skipSelfUpdate, withCache bool) (err error) {
 // The script includes two parts for defined group/version based on local channel mapping:
 // * multiwerf update procedure that will be performed on background or foreground and
 // * werf alias that uses path to the actual werf binary
-func Use(group, channel string, forceRemoteCheck, asFile bool, shell string) (err error) {
+func Use(group, channel string, shell string, options UseOptions) (err error) {
 	printer := output.NewSilentPrint()
 	if err := ValidateGroup(group, printer); err != nil {
 		return err
@@ -106,15 +118,28 @@ func Use(group, channel string, forceRemoteCheck, asFile bool, shell string) (er
 		return err
 	}
 
-	useWerfPathLogPath := filepath.Join(StorageDir, "multiwerf_use_first_werf_path.log")
-	backgroundUpdateLogPath := filepath.Join(StorageDir, "background_update.log")
+	firstWerfPathLogPath := filepath.Join(StorageDir, "multiwerf_use_first_werf_path.log")
+	backgroundUpdateLogPath := filepath.Join(StorageDir, "multiwerf_use_background_update.log")
 
-	var backgroundUpdateArgs []string
-	if !forceRemoteCheck {
+	groupAndChannelArgs := []string{group, channel}
+	commonUpdateArgs := groupAndChannelArgs[0:]
+	if options.SkipSelfUpdate {
+		commonUpdateArgs = append(commonUpdateArgs, "--self-update=no")
+	}
+
+	foregroundUpdateArgs := commonUpdateArgs[0:]
+	backgroundUpdateArgs := commonUpdateArgs[0:]
+	if !options.ForceRemoteCheck {
 		backgroundUpdateArgs = append(backgroundUpdateArgs, "--with-cache")
 	}
 
-	backgroundUpdateArgs = append(backgroundUpdateArgs, group, channel)
+	scriptArgs := []interface{}{
+		strings.Join(groupAndChannelArgs, " "),  // %[1]s: group channel
+		strings.Join(foregroundUpdateArgs, " "), // %[2]s: group channel [flag ...]
+		strings.Join(backgroundUpdateArgs, " "), // %[3]s: group channel [flag ...]
+		firstWerfPathLogPath,                    // %[4]s: multiwerf_use_first_werf_path.log
+		backgroundUpdateLogPath,                 // %[5]s: multiwerf_use_background_update.log
+	}
 
 	var filename = "werf_source"
 	var filenameExt string
@@ -124,39 +149,39 @@ func Use(group, channel string, forceRemoteCheck, asFile bool, shell string) (er
 	case "cmdexe":
 		filenameExt = "bat"
 		fileContent = fmt.Sprintf(`
-FOR /F "tokens=*" %%%%g IN ('multiwerf werf-path %[1]s %[2]s') do (SET WERF_PATH=%%%%g)
+FOR /F "tokens=*" %%%%g IN ('multiwerf werf-path %[1]s > %[4]s 2>&1') do (SET WERF_PATH=%%%%g)
 
 IF %%ERRORLEVEL%% NEQ 0 (
-    multiwerf update %[1]s %[2]s 
-    FOR /F "tokens=*" %%%%g IN ('multiwerf werf-path %[1]s %[2]s') do (SET WERF_PATH=%%%%g)
+    multiwerf update %[2]s 
+    FOR /F "tokens=*" %%%%g IN ('multiwerf werf-path %[1]s') do (SET WERF_PATH=%%%%g)
 ) ELSE (
     START /B multiwerf update %[3]s >%[5]s 2>&1
 )
 
 DOSKEY werf=%%WERF_PATH%% $*
-`, group, channel, strings.Join(backgroundUpdateArgs, " "), useWerfPathLogPath, backgroundUpdateLogPath)
+`, scriptArgs...)
 	case "powershell":
 		filenameExt = "ps1"
 		fileContent = fmt.Sprintf(`
-if (Invoke-Expression -Command "multiwerf werf-path %[1]s %[2]s >%[4]s 2>&1" | Out-String -OutVariable WERF_PATH) {
+if (Invoke-Expression -Command "multiwerf werf-path %[1]s >%[4]s 2>&1" | Out-String -OutVariable WERF_PATH) {
     Start-Job { multiwerf update %[3]s >%[5]s 2>&1 }
 } else {
-    multiwerf update %[1]s %[2]s
-    Invoke-Expression -Command "multiwerf werf-path %[1]s %[2]s" | Out-String -OutVariable WERF_PATH
+    multiwerf update %[2]s
+    Invoke-Expression -Command "multiwerf werf-path %[1]s" | Out-String -OutVariable WERF_PATH
 }
 
 function werf { & $WERF_PATH.Trim() $args }
-`, group, channel, strings.Join(backgroundUpdateArgs, " "), useWerfPathLogPath, backgroundUpdateLogPath)
+`, scriptArgs...)
 	default:
 		if runtime.GOOS == "windows" {
 			fileContent = fmt.Sprintf(`
-if multiwerf werf-path %[1]s %[2]s >%[4]s 2>&1; then
+if multiwerf werf-path %[1]s >%[4]s 2>&1; then
     (multiwerf update %[3]s >%[5]s 2>&1 </dev/null &)
 else
-    multiwerf update %[1]s %[2]s
+    multiwerf update %[2]s
 fi
 
-WERF_PATH=$(multiwerf werf-path %[1]s %[2]s | sed 's/\\/\//g')
+WERF_PATH=$(multiwerf werf-path %[1]s | sed 's/\\/\//g')
 WERF_FUNC=$(cat <<EOF
 werf() 
 {
@@ -166,16 +191,16 @@ EOF
 )
 
 eval "$WERF_FUNC"
-`, group, channel, strings.Join(backgroundUpdateArgs, " "), useWerfPathLogPath, backgroundUpdateLogPath)
+`, scriptArgs...)
 		} else {
 			fileContent = fmt.Sprintf(`
-if multiwerf werf-path %[1]s %[2]s >%[4]s 2>&1; then
+if multiwerf werf-path %[1]s >%[4]s 2>&1; then
     (setsid multiwerf update %[3]s >%[5]s 2>&1 </dev/null &)
 else
-    multiwerf update %[1]s %[2]s
+    multiwerf update %[2]s
 fi
 
-WERF_PATH=$(multiwerf werf-path %[1]s %[2]s)
+WERF_PATH=$(multiwerf werf-path %[1]s)
 WERF_FUNC=$(cat <<EOF
 werf() 
 {
@@ -185,17 +210,22 @@ EOF
 )
 
 eval "$WERF_FUNC"
-`, group, channel, strings.Join(backgroundUpdateArgs, " "), useWerfPathLogPath, backgroundUpdateLogPath)
+`, scriptArgs...)
 		}
 	}
 
 	fileContent = fmt.Sprintln(strings.TrimSpace(fileContent))
 
-	if !asFile {
+	if !options.AsFile {
 		fmt.Printf(fileContent)
 	} else {
-		if forceRemoteCheck {
+		if options.ForceRemoteCheck {
 			filename = strings.Join([]string{filename, "force_remote_check"}, "_with_")
+		}
+
+		withExtraArgs := !reflect.DeepEqual(commonUpdateArgs, groupAndChannelArgs)
+		if withExtraArgs {
+			filename = strings.Join([]string{filename, shluz.MurmurHash(strings.Join(commonUpdateArgs, " "))}, "_")
 		}
 
 		if filenameExt != "" {
