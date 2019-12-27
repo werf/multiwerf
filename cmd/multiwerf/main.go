@@ -49,7 +49,6 @@ func main() {
 
 	var groupStr string
 	var channelStr string
-	var selfUpdate = "yes"
 	var forceRemoteCheck bool
 	var shell = "default"
 	var withCache bool
@@ -60,7 +59,7 @@ func main() {
 		Command("update", "Perform self-update and download the actual channel werf binary.").
 		Action(func(c *kingpin.ParseContext) error {
 			channelStr = normalizeChannel(channelStr)
-			skipSelfUpdate := selfUpdate == "no"
+			skipSelfUpdate := (app.SelfUpdate == "no")
 
 			// TODO add special error to exit with 1 and not print error message with kingpin
 			err := multiwerf.Update(groupStr, channelStr, skipSelfUpdate, withCache)
@@ -79,10 +78,6 @@ func main() {
 		EnumVar(&channelStr, channelEnum...)
 	updateCmd.Flag("with-cache", "Cache remote channel mapping between updates.").
 		BoolVar(&withCache)
-	updateCmd.Flag("self-update", "Perform multiwerf self-update. To disable set to 'no'.").
-		Envar("MULTIWERF_SELF_UPDATE").
-		Default(selfUpdate).
-		StringVar(&selfUpdate)
 
 	// multiwerf use
 	useCmd := kpApp.
