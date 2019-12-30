@@ -82,7 +82,7 @@ func PerformSelfUpdate(printer output.Printer, skipSelfUpdate bool) (err error) 
 		if !app.Experimental {
 			// Check for delay of self update
 			selfUpdateDelay := DelayFile{
-				Filename: filepath.Join(StorageDir, "update-multiwerf.delay"),
+				Filename: filepath.Join(StorageDir, "self-update.delay"),
 			}
 			selfUpdateDelay.WithDelay(app.SelfUpdateDelay)
 

@@ -9,7 +9,7 @@ import (
 
 type MsgType string
 
-var (
+const (
 	OkMsgType   MsgType = "ok"
 	WarnMsgType MsgType = "warn"
 	FailMsgType MsgType = "fail"
