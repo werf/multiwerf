@@ -1,9 +1,6 @@
-package utils
+package util_test
 
 import (
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"runtime"
 
 	"github.com/otiai10/copy"
@@ -21,9 +18,4 @@ func init() {
 
 func CopyIn(sourcePath, destinationPath string) {
 	Ω(copy.Copy(sourcePath, destinationPath)).Should(Succeed())
-}
-
-func CreateFile(path string, data []byte) {
-	Ω(os.MkdirAll(filepath.Dir(path), 0777)).Should(Succeed())
-	Ω(ioutil.WriteFile(path, data, 0644)).Should(Succeed())
 }
