@@ -44,11 +44,6 @@ var SelfUpdateDelay = 2 * time.Hour
 
 // SetupGlobalSettings init global flags with default values
 func SetupGlobalSettings(kpApp *kingpin.Application) {
-	kpApp.Flag("update", "set to `no' to disable werf update in use and update command").
-		Envar("MULTIWERF_UPDATE").
-		Default(Update).
-		StringVar(&Update)
-
 	kpApp.Flag("experimental", "allow self-update to experimental multiwerf").
 		Hidden().
 		Envar("MULTIWERF_EXPERIMENTAL").
