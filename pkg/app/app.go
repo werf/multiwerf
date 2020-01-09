@@ -74,8 +74,8 @@ func SetupGlobalSettings(kpApp *kingpin.Application) {
 	kpApp.Flag("bintray-subject", "The subject part for bintray api.").
 		Hidden().
 		Envar("MULTIWERF_BINTRAY_SUBJECT").
-		Default(ChannelMappingPath).
-		StringVar(&ChannelMappingPath)
+		Default(BintraySubject).
+		StringVar(&BintraySubject)
 
 	kpApp.Flag("bintray-repo", "The repository part for bintray api.").
 		Hidden().
