@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/flant/multiwerf/pkg/http"
 )
@@ -82,10 +83,13 @@ func GetPackageVersions(packageInfo string) (versions []string) {
 func (bc *MainBintrayClient) DownloadFiles(version string, dstDir string, files map[string]string) error {
 	srcUrl := fmt.Sprintf("%s/%s/%s/%s", BintrayDlUrl, bc.Subject, bc.Repo, version)
 
+	var filesToRemove []string
 	shouldBeRemoved := true
 	defer func() {
 		if shouldBeRemoved {
-			os.RemoveAll(dstDir)
+			for _, file := range filesToRemove {
+				os.RemoveAll(file)
+			}
 		}
 	}()
 
@@ -99,6 +103,8 @@ func (bc *MainBintrayClient) DownloadFiles(version string, dstDir string, files 
 		if err := http.DownloadLargeFile(fileUrl, dstDir, fileName); err != nil {
 			return fmt.Errorf("%s download error: %v", fileUrl, err)
 		}
+
+		filesToRemove = append(filesToRemove, filepath.Join(dstDir, fileName))
 	}
 
 	shouldBeRemoved = false
