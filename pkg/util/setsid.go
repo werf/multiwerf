@@ -9,17 +9,18 @@ import (
 )
 
 func Setsid() error {
-	fmt.Println("!!!")
-	fmt.Println(os.Getpid())
-	fmt.Println(os.Getppid())
+	ret, _, errno := syscall.Syscall(syscall.SYS_FORK, 0, 0, 0)
+	if errno != 0 {
+		return fmt.Errorf("fork failed: errno %d", errno)
+	}
+	if ret > 0 {
+		os.Exit(0)
+	}
+
 	pid, err := syscall.Setsid()
 	if pid < 0 || err != nil {
 		return err
 	}
-
-	fmt.Println("!!!")
-	fmt.Println(os.Getpid())
-	fmt.Println(os.Getppid())
 
 	return nil
 }
