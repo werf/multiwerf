@@ -70,7 +70,7 @@ func main() {
 		Action(func(c *kingpin.ParseContext) error {
 			if setsid && !setsid2 {
 				var args []string
-				args = append(args, os.Args[0:]...)
+				args = append(args, os.Args[1:]...)
 				args = append(args, "--setsid2")
 
 				cmd := exec.Command(os.Args[0], args...)
