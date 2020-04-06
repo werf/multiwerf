@@ -13,7 +13,7 @@ func Setsid() error {
 	fmt.Println(os.Getpid())
 	fmt.Println(os.Getppid())
 	pid, err := syscall.Setsid()
-	if pid == -1 || err != nil {
+	if pid < 0 || err != nil {
 		return err
 	}
 
