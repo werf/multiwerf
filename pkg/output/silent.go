@@ -1,15 +1,19 @@
 package output
 
 import (
+	"os"
+
 	"github.com/fatih/color"
 )
 
 type SilentPrint struct {
-	SimplePrint
+	*SimplePrint
 }
 
 func NewSilentPrint() *SilentPrint {
-	return &SilentPrint{}
+	return &SilentPrint{
+		SimplePrint: NewSimplePrint(os.Stdout),
+	}
 }
 
 func (p *SilentPrint) Cprintf(_ *color.Attribute, format string, args ...interface{}) (n int, err error) {

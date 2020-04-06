@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/flant/multiwerf/pkg/app"
 )
@@ -199,7 +198,7 @@ func GetChannelMapping(messages chan ActionMessage, tryRemoteChannelMapping bool
 
 	channelMapping, err := newLocalChannelMapping(localChannelMappingPath)
 	if err != nil {
-		return nil, fmt.Errorf("get the local channel mapping failed: %s\nRun command `multiwerf update %s` to download the actual one", err, strings.Join(os.Args[2:], " "))
+		return nil, fmt.Errorf("get the local channel mapping failed: %s\nRun command `multiwerf update` to download the actual one", err)
 	}
 
 	return channelMapping, nil
