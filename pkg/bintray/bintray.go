@@ -66,7 +66,7 @@ func (bc *MainBintrayClient) GetPackageInfo() (string, error) {
 // GetPackageVersions returns versions field from package info json
 func GetPackageVersions(packageInfo string) (versions []string) {
 	res := map[string]interface{}{}
-	json.Unmarshal([]byte(packageInfo), &res)
+	_ = json.Unmarshal([]byte(packageInfo), &res)
 
 	vs, ok := res["versions"].([]interface{})
 	if !ok {
@@ -93,11 +93,11 @@ func (bc *MainBintrayClient) DownloadFiles(version string, dstDir string, files 
 		}
 	}()
 
-	for fileType, fileName := range files {
+	for _, fileName := range files {
 		// TODO implement goreleaser lifecycle and verify gpg signing
-		if fileType == "sig" {
-			continue
-		}
+		//if fileType == "sig" {
+		//	continue
+		//}
 		fileUrl := fmt.Sprintf("%s/%s", srcUrl, fileName)
 
 		if err := http.DownloadLargeFile(fileUrl, dstDir, fileName); err != nil {

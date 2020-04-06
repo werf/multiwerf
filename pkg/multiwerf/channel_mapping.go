@@ -48,6 +48,17 @@ func (c *ChannelMappingBase) Save() error {
 	return nil
 }
 
+func (c *ChannelMappingBase) Marshal() ([]byte, error) {
+	data, err := json.MarshalIndent(c, "", "    ")
+	if err != nil {
+		return nil, err
+	}
+
+	data = append(data, []byte("\n")...)
+
+	return data, nil
+}
+
 type ChannelMappingLocal struct {
 	ChannelMappingBase
 }
@@ -57,12 +68,7 @@ type ChannelMappingRemote struct {
 }
 
 func (c *ChannelMappingRemote) Save() error {
-	data, err := json.MarshalIndent(c, "", "    ")
-	if err != nil {
-		return err
-	}
-
-	data = append(data, []byte("\n")...)
+	data, err := c.Marshal()
 
 	localChannelMappingFilePath := defaultLocalChannelMappingFilePath()
 	if exist, err := FileExists(localChannelMappingFilePath); err != nil {
@@ -155,7 +161,7 @@ func defaultLocalChannelMappingFilePath() string {
 	return filepath.Join(StorageDir, DefaultLocalChannelMappingFilename)
 }
 
-func isLocalChannelMappingFilePathExist() (bool, error) {
+func isLocalChannelMappingFileExist() (bool, error) {
 	localChannelMappingPath := defaultLocalChannelMappingFilePath()
 	if app.ChannelMappingPath != "" {
 		localChannelMappingPath = app.ChannelMappingPath

@@ -67,7 +67,7 @@ func Update(group, channel string, options UpdateOptions) (err error) {
 }
 
 func processTryRemoteChannelMapping(printer output.Printer, channel string, withCache, tryRemoteChannelMapping bool) (bool, error) {
-	isLocalChannelMappingFileExist, err := isLocalChannelMappingFilePathExist()
+	isLocalChannelMappingFileExist, err := isLocalChannelMappingFileExist()
 	if err != nil {
 		return false, err
 	}

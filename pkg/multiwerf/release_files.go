@@ -62,8 +62,8 @@ func CalculateSHA256(filePath string) (string, error) {
 // ReleaseFiles return a map with release filenames of package pkg for particular osArch and version
 func ReleaseFiles(pkg string, version string, osArch string) map[string]string {
 	files := map[string]string{
-		"hash":    "SHA256SUMS",
-		"sig":     "SHA256SUMS.sig",
+		"hash": "SHA256SUMS",
+		//"sig":     "SHA256SUMS.sig", // TODO implement goreleaser lifecycle and verify gpg signing
 		"program": ReleaseProgramFilename(pkg, version, osArch),
 	}
 
@@ -81,10 +81,11 @@ func ReleaseProgramFilename(pkg, version, osArch string) string {
 
 func IsReleaseFilesExist(dir string, files map[string]string) (bool, error) {
 	exist := true
-	for fileType, fileName := range files {
-		if fileType == "sig" {
-			continue
-		}
+	for _, fileName := range files {
+		// TODO implement goreleaser lifecycle and verify gpg signing
+		// if fileType == "sig" {
+		//	continue
+		// }
 
 		fExist, err := FileExists(filepath.Join(dir, fileName))
 		if err != nil {
