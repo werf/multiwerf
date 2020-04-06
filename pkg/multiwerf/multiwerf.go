@@ -15,6 +15,7 @@ import (
 
 	"github.com/flant/multiwerf/pkg/app"
 	"github.com/flant/multiwerf/pkg/output"
+	"github.com/flant/multiwerf/pkg/util"
 )
 
 var (
@@ -26,6 +27,7 @@ type UpdateOptions struct {
 	SkipSelfUpdate          bool
 	TryRemoteChannelMapping bool
 	WithCache               bool
+	Setsid                  bool
 }
 
 // Update checks for the actual version for group/channel and downloads it to StorageDir if it does not already exist
@@ -37,6 +39,12 @@ type UpdateOptions struct {
 // - options.SkipSelfUpdate - a boolean to perform self-update
 // - options.WithCache - a boolean to try or not getting remote channel mapping
 func Update(group, channel string, options UpdateOptions) (err error) {
+	if options.Setsid {
+		if err := util.Setsid(); err != nil {
+			return err
+		}
+	}
+
 	printer := output.NewSimplePrint()
 
 	if err := ValidateGroup(group, printer); err != nil {

@@ -60,6 +60,7 @@ func main() {
 	var shell = "default"
 	var withCache bool
 	var asFile bool
+	var setsid bool
 
 	// multiwerf update
 	updateCmd := kpApp.
@@ -71,6 +72,7 @@ func main() {
 				SkipSelfUpdate:          selfUpdate == "no",
 				WithCache:               withCache,
 				TryRemoteChannelMapping: update == "yes",
+				Setsid:                  setsid,
 			}
 
 			// TODO add special error to exit with 1 and not print error message with kingpin
@@ -98,6 +100,8 @@ func main() {
 		Envar("MULTIWERF_UPDATE").
 		Default(update).
 		StringVar(&update)
+	updateCmd.Flag("setsid", "Enable running process in a new session, in background").
+		BoolVar(&setsid)
 
 	// multiwerf use
 	useCmd := kpApp.
