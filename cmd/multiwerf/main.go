@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/flant/multiwerf/pkg/app"
 	"github.com/flant/multiwerf/pkg/multiwerf"
@@ -80,6 +81,9 @@ func main() {
 					fmt.Println(err)
 					os.Exit(1)
 				}
+
+				time.Sleep(100 * time.Second)
+
 				if err := cmd.Process.Release(); err != nil {
 					fmt.Println(err)
 					return err
