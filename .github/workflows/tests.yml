@@ -3,14 +3,19 @@ on:
   pull_request:
     branches:
       - master
+  schedule:
+  - cron:  '0 0 * * *'
+  repository_dispatch:
+    types: [master-tests]
 env:
   GO111MODULE: on
 
 jobs:
 
   tests:
-    name: Go Test
+    name: Go Test (with coverage)
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macOS-latest, windows-latest]
     runs-on: ${{ matrix.os }}
@@ -25,8 +30,34 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v1
 
-    - name: Run tests
-      run: go test ./...
+    - name: Download modules
+      run: go mod download
+      shell: bash
+
+    - name: Prepare environment
+      run: |
+        export MULTIWERF_TEST_COVERAGE_DIR=$GITHUB_WORKSPACE/tests_coverage/${{ matrix.os }}
+        mkdir -p $MULTIWERF_TEST_COVERAGE_DIR
+        echo ::set-env name=MULTIWERF_TEST_COVERAGE_DIR::$MULTIWERF_TEST_COVERAGE_DIR
+
+        ./scripts/tests/multiwerf_with_coverage.sh
+      shell: bash
+
+    - name: Run tests (!windows-latest)
+      run: MULTIWERF_TEST_BINARY_PATH=$GITHUB_WORKSPACE/bin/tests/multiwerf_with_coverage go test ./...
+      shell: bash
+      if: matrix.os != 'windows-latest'
+
+    - name: Run tests (windows-latest)
+      run: MULTIWERF_TEST_BINARY_PATH=$GITHUB_WORKSPACE/bin/tests/multiwerf_with_coverage.exe go test ./...
+      shell: bash
+      if: matrix.os == 'windows-latest'
+
+    - name: Upload coverage artifact
+      uses: actions/upload-artifact@master
+      with:
+        name: tests_coverage
+        path: tests_coverage
 
   use_command:
     name: Use Command
@@ -35,16 +66,16 @@ jobs:
         os: [ubuntu-latest, macOS-latest, windows-latest]
         shell: [sh, bash, cmd, powershell]
         exclude:
-          - os: ubuntu-latest
-            shell: cmd
-          - os: ubuntu-latest
-            shell: powershell
-          - os: macOS-latest
-            shell: cmd
-          - os: macOS-latest
-            shell: powershell
-          - os: windows-latest
-            shell: sh
+        - os: ubuntu-latest
+          shell: cmd
+        - os: ubuntu-latest
+          shell: powershell
+        - os: macOS-latest
+          shell: cmd
+        - os: macOS-latest
+          shell: powershell
+        - os: windows-latest
+          shell: sh
     runs-on: ${{ matrix.os }}
     steps:
 
@@ -64,7 +95,7 @@ jobs:
         ./go-build.sh
       shell: bash
 
-    - name: Install werf
+    - name: Install werf (sh)
       run: |
         export MULTIWERF_SELF_UPDATE=no
         . $(multiwerf use 1.0 stable --shell default --as-file)
@@ -72,7 +103,7 @@ jobs:
       shell: sh
       if: matrix.shell == 'sh'
 
-    - name: Install werf
+    - name: Install werf (bash)
       run: |
         export MULTIWERF_SELF_UPDATE=no
         . $(multiwerf use 1.0 stable --shell default --as-file)
@@ -80,7 +111,7 @@ jobs:
       shell: bash
       if: matrix.shell == 'bash'
 
-    - name: Install werf
+    - name: Install werf (cmd)
       run: |
         set MULTIWERF_SELF_UPDATE=no
         FOR /F "tokens=*" %%g IN ('multiwerf use 1.0 stable --as-file --shell cmdexe') do (SET WERF_USE_SCRIPT_PATH=%%g)
@@ -89,7 +120,7 @@ jobs:
       shell: cmd
       if: matrix.shell == 'cmd'
 
-    - name: Install werf
+    - name: Install werf (powershell)
       run: |
         set MULTIWERF_SELF_UPDATE=no
         Invoke-Expression -Command "multiwerf use 1.0 stable --as-file --shell powershell" | Out-String -OutVariable WERF_USE_SCRIPT_PATH
@@ -97,3 +128,58 @@ jobs:
         werf
       shell: powershell
       if: matrix.shell == 'powershell'
+
+  upload_coverage:
+    name: Upload coverage
+    needs:
+      - tests
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Checkout code
+      uses: actions/checkout@v1
+
+    - name: Download coverage artifact
+      uses: actions/download-artifact@master
+      with:
+        name: tests_coverage
+        path: tests_coverage
+
+    - name: Prepare environment
+      run: |
+        curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+        chmod +x ./cc-test-reporter
+
+        go build github.com/wadey/gocovmerge
+        chmod +x ./gocovmerge
+
+        echo ::set-env name=MULTIWERF_TEST_COVERAGE_DIR::tests_coverage
+
+    # FIXME: determine problems with coverage records and remove seds
+    - name: Prepare coverage file
+      run: |
+        find $MULTIWERF_TEST_COVERAGE_DIR -type f -exec \
+          sed -i -e "s|/home/runner/work/multiwerf/multiwerf|github.com/flant/multiwerf|g" {} +
+
+        find $MULTIWERF_TEST_COVERAGE_DIR -type f -exec \
+          sed -i -e "s|/Users/runner/runners/[0-9.]*/work/multiwerf/multiwerf|github.com/flant/multiwerf|g" {} +
+
+        find $MULTIWERF_TEST_COVERAGE_DIR -type f -exec \
+          sed -i -e 's|D:\\a\\multiwerf\\multiwerf\\cmd\\multiwerf\\main.go|github.com/flant/multiwerf/cmd/multiwerf/main.go|g' {} +
+
+        coverage_files=$(find $MULTIWERF_TEST_COVERAGE_DIR -name '*.out')
+        ./gocovmerge ${coverage_files[@]} > coverage.out
+
+    - name: Format and upload
+      run: |
+        export GIT_BRANCH=${GITHUB_REF:11}
+        export GIT_COMMIT_SHA=$GITHUB_SHA
+
+        ./cc-test-reporter format-coverage \
+          -t=gocov \
+          -p=github.com/flant/multiwerf/ \
+          coverage.out
+
+        ./cc-test-reporter upload-coverage
+      env:
+        CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}

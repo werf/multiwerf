@@ -1,8 +1,7 @@
-package utils
+package util_test
 
 import (
 	"bytes"
-	"encoding/base64"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -51,8 +50,4 @@ func RunCommandWithOptions(dir, command string, args []string, options RunComman
 	}
 
 	return res, err
-}
-
-func ShelloutPack(command string) string {
-	return fmt.Sprintf("eval $(echo %s | base64 -d)", base64.StdEncoding.EncodeToString([]byte(command)))
 }

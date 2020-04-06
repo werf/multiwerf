@@ -1,4 +1,4 @@
-package utils
+package util_test
 
 import (
 	"fmt"
@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/gexec"
 )
 
 func GetTempDir() (string, error) {
@@ -27,20 +27,17 @@ func GetTempDir() (string, error) {
 	return dir, nil
 }
 
-var environ = os.Environ()
-
-func ResetEnviron() {
-	os.Clearenv()
-	for _, env := range environ {
-		// ignore dynamic variables (e.g. "=ExitCode" windows variable)
-		if strings.HasPrefix(env, "=") {
-			continue
-		}
-
-		parts := strings.SplitN(env, "=", 2)
-		envName := parts[0]
-		envValue := parts[1]
-
-		Ω(os.Setenv(envName, envValue)).Should(Succeed(), env)
+func ProcessMultiwerfBinPath() string {
+	path := os.Getenv("MULTIWERF_TEST_BINARY_PATH")
+	if path != "" {
+		return path
 	}
+
+	return BuildMultiwerfBinPath()
+}
+
+func BuildMultiwerfBinPath() string {
+	path, err := gexec.Build("github.com/flant/multiwerf/cmd/multiwerf")
+	Ω(err).ShouldNot(HaveOccurred())
+	return path
 }
