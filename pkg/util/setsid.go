@@ -17,6 +17,9 @@ func Setsid() error {
 	if errno != 0 {
 		return fmt.Errorf("fork failed: errno %d", errno)
 	}
+
+	fmt.Println(ret, "123")
+
 	if ret > 0 {
 		os.Exit(0)
 	}
