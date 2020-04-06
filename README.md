@@ -1,5 +1,5 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/flant/multiwerf)](https://goreportcard.com/report/github.com/flant/multiwerf)
-<a href="https://codeclimate.com/github/flant/multiwerf/test_coverage"><img src="https://api.codeclimate.com/v1/badges/361bccdfd0c24a7a817d/test_coverage" /></a>
+[![Test coverage](https://api.codeclimate.com/v1/badges/361bccdfd0c24a7a817d/test_coverage)](https://codeclimate.com/github/flant/multiwerf/test_coverage)
 [![Download from Github](https://img.shields.io/github/tag-date/flant/multiwerf.svg?logo=github&label=latest)](https://github.com/flant/multiwerf/releases/latest)
 [![Download from Bintray mirror](https://api.bintray.com/packages/flant/multiwerf/multiwerf/images/download.svg)](https://bintray.com/flant/multiwerf/multiwerf/_latestVersion)
 
