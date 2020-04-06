@@ -136,7 +136,7 @@ func UseChannelVersionBinary(messages chan ActionMessage, group string, channel 
 	}
 
 	messages <- ActionMessage{
-		err: fmt.Errorf("the actual version has not been found locally\nRun command `multiwerf update %s %s`", group, channel),
+		err: fmt.Errorf("the actual channel version has not been found locally\nRun command `multiwerf update %s %s`", group, channel),
 	}
 
 	return nil
