@@ -41,6 +41,7 @@ type UpdateOptions struct {
 func Update(group, channel string, options UpdateOptions) (err error) {
 	if options.Setsid {
 		if err := util.Setsid(); err != nil {
+			fmt.Println(err.Error())
 			return err
 		}
 	}
