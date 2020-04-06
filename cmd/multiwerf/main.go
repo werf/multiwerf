@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"strings"
-
 	"gopkg.in/alecthomas/kingpin.v2"
+	"os"
+	"os/exec"
+	"strings"
 
 	"github.com/flant/multiwerf/pkg/app"
 	"github.com/flant/multiwerf/pkg/multiwerf"
@@ -61,11 +61,34 @@ func main() {
 	var withCache bool
 	var asFile bool
 	var setsid bool
+	var setsid2 bool
 
 	// multiwerf update
 	updateCmd := kpApp.
 		Command("update", "Perform self-update and download the actual channel werf binary.").
 		Action(func(c *kingpin.ParseContext) error {
+			if setsid && !setsid2 {
+				var args []string
+				args = append(args, os.Args[0:]...)
+				args = append(args, "--setsid2")
+
+				cmd := exec.Command(os.Args[0], args...)
+				cmd.Stdout = os.Stdout
+				cmd.Stdin = os.Stdin
+				cmd.Stderr = os.Stderr
+				if err := cmd.Start(); err != nil {
+					fmt.Println(err)
+					os.Exit(1)
+				}
+				if err := cmd.Process.Release(); err != nil {
+					fmt.Println(err)
+					return err
+				}
+
+				fmt.Println("OK")
+				os.Exit(0)
+			}
+
 			channelStr = normalizeChannel(channelStr)
 
 			options := multiwerf.UpdateOptions{
@@ -102,6 +125,8 @@ func main() {
 		StringVar(&update)
 	updateCmd.Flag("setsid", "Enable running process in a new session, in background").
 		BoolVar(&setsid)
+	updateCmd.Flag("setsid2", "Enable running process in a new session, in background").
+		BoolVar(&setsid2)
 
 	// multiwerf use
 	useCmd := kpApp.
