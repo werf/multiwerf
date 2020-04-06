@@ -15,7 +15,6 @@ import (
 
 	"github.com/flant/multiwerf/pkg/app"
 	"github.com/flant/multiwerf/pkg/output"
-	"github.com/flant/multiwerf/pkg/util"
 )
 
 var (
