@@ -2,14 +2,13 @@ package main
 
 import (
 	"fmt"
+	"github.com/flant/multiwerf/pkg/app"
+	"github.com/flant/multiwerf/pkg/multiwerf"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
-
-	"github.com/flant/multiwerf/pkg/app"
-	"github.com/flant/multiwerf/pkg/multiwerf"
 )
 
 var (
@@ -82,8 +81,6 @@ func main() {
 					os.Exit(1)
 				}
 
-				time.Sleep(100 * time.Second)
-
 				if err := cmd.Process.Release(); err != nil {
 					fmt.Println(err)
 					return err
@@ -93,6 +90,7 @@ func main() {
 				os.Exit(0)
 			}
 
+			time.Sleep(100 * time.Second)
 			channelStr = normalizeChannel(channelStr)
 
 			options := multiwerf.UpdateOptions{
