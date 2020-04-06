@@ -39,13 +39,6 @@ type UpdateOptions struct {
 // - options.SkipSelfUpdate - a boolean to perform self-update
 // - options.WithCache - a boolean to try or not getting remote channel mapping
 func Update(group, channel string, options UpdateOptions) (err error) {
-	if options.Setsid {
-		if err := util.Setsid(); err != nil {
-			fmt.Println(err.Error())
-			return err
-		}
-	}
-
 	printer := output.NewSimplePrint()
 
 	if err := ValidateGroup(group, printer); err != nil {
