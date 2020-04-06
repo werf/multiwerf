@@ -11,7 +11,7 @@ func Setsid() error {
 	fmt.Println("!!!")
 
 	pid, err := syscall.Setsid()
-	if pid == -1 {
+	if pid == -1 || err != nil {
 		return err
 	}
 
