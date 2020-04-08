@@ -17,8 +17,6 @@ import (
 	"github.com/flant/multiwerf/pkg/util"
 )
 
-var multiwerfProlog = fmt.Sprintf("%s %s self-update", app.AppName, app.Version)
-
 const SelfUpdateLockName = "self-update"
 
 // update multiwerf binary (self-update)
@@ -54,7 +52,7 @@ func PerformSelfUpdate(printer output.Printer, skipSelfUpdate bool) (err error) 
 			}
 
 			messages <- ActionMessage{
-				msg:     fmt.Sprintf("Skip self-update: cannot acquire a lock: %v", err),
+				msg:     fmt.Sprintf("Skip Self-update: Cannot acquire a lock: %v", err),
 				msgType: WarnMsgType,
 			}
 
@@ -139,7 +137,7 @@ func PerformSelfUpdate(printer output.Printer, skipSelfUpdate bool) (err error) 
 			PrintActionMessage(
 				ActionMessage{
 					comment: "self-update error",
-					msg:     fmt.Sprintf("%s: exec of updated binary failed: %v", multiwerfProlog, err),
+					msg:     fmt.Sprintf("Self-update: Exec of updated binary failed: %v", err),
 					msgType: FailMsgType,
 					stage:   "self-update",
 				},
@@ -158,7 +156,7 @@ func SelfUpdate(messages chan ActionMessage) string {
 	selfPath, err := GetSelfExecutableInfo()
 	if err != nil {
 		messages <- ActionMessage{
-			msg:   fmt.Sprintf("%s: get executable file info error: %v", multiwerfProlog, err),
+			msg:   fmt.Sprintf("Self-update: Get executable file info error: %v", err),
 			stage: "self-update-error"}
 		return ""
 	}
@@ -166,11 +164,11 @@ func SelfUpdate(messages chan ActionMessage) string {
 	err = CheckIsFileWritable(selfPath)
 	if err != nil {
 		messages <- ActionMessage{
-			msg:   fmt.Sprintf("%s: check for writable file error: %v", multiwerfProlog, err),
+			msg:   fmt.Sprintf("Self-update: Check for writable file error: %v", err),
 			debug: true}
 		messages <- ActionMessage{
 			comment: "self update warning",
-			msg:     fmt.Sprintf("Skip self-update: executable file is not writable."),
+			msg:     fmt.Sprintf("Skip Self-update: Executable file is not writable."),
 			msgType: WarnMsgType,
 			stage:   "self-update"}
 		return ""
@@ -192,7 +190,7 @@ func SelfUpdate(messages chan ActionMessage) string {
 	if err != nil {
 		messages <- ActionMessage{
 			comment: "self update error",
-			msg:     fmt.Sprintf("%s: package %s GET info error: %v", multiwerfProlog, app.SelfBintrayPackage, err),
+			msg:     fmt.Sprintf("Self-update: Package %s GET info error: %v", app.SelfBintrayPackage, err),
 			msgType: FailMsgType,
 			stage:   "self-update"}
 		return ""
@@ -202,13 +200,13 @@ func SelfUpdate(messages chan ActionMessage) string {
 	if len(versions) == 0 {
 		messages <- ActionMessage{
 			comment: "self update error",
-			msg:     fmt.Sprintf("%s: no versions found", multiwerfProlog),
+			msg:     "Self-update: no versions found",
 			msgType: FailMsgType,
 			stage:   "self-update"}
 		return ""
 	} else {
 		messages <- ActionMessage{
-			msg:   fmt.Sprintf("%s: discover %d versions: %+v", multiwerfProlog, len(versions), versions),
+			msg:   fmt.Sprintf("Self-update: Discover %d versions: %+v", len(versions), versions),
 			debug: true}
 	}
 
@@ -217,7 +215,7 @@ func SelfUpdate(messages chan ActionMessage) string {
 	if err != nil {
 		messages <- ActionMessage{
 			comment: "self update error",
-			msg:     fmt.Sprintf("%s: cannot choose latest version: %v", multiwerfProlog, err),
+			msg:     fmt.Sprintf("Self-update: Cannot choose the latest version: %v", err),
 			msgType: FailMsgType,
 			stage:   "self-update"}
 		return ""
@@ -225,7 +223,7 @@ func SelfUpdate(messages chan ActionMessage) string {
 	if latestVersion == "" {
 		messages <- ActionMessage{
 			comment: "self update error",
-			msg:     fmt.Sprintf("%s: no latest version found", multiwerfProlog),
+			msg:     "Self-update: The latest version not found",
 			msgType: FailMsgType,
 			stage:   "self-update"}
 		return ""
@@ -233,14 +231,14 @@ func SelfUpdate(messages chan ActionMessage) string {
 
 	if latestVersion == app.Version {
 		messages <- ActionMessage{
-			msg:     fmt.Sprintf("%s: already latest version", multiwerfProlog),
+			msg:     "Self-update: Already the latest version",
 			msgType: OkMsgType,
 			stage:   "self-update"}
 		return ""
 	}
 
 	messages <- ActionMessage{
-		msg:     fmt.Sprintf("%s: detect version %s as latest", multiwerfProlog, latestVersion),
+		msg:     fmt.Sprintf("Self-update: Detect version %s as the latest", latestVersion),
 		msgType: OkMsgType,
 		stage:   "self-update"}
 
@@ -252,12 +250,12 @@ func SelfUpdate(messages chan ActionMessage) string {
 		msg:   fmt.Sprintf("dstPath is %s, downloadFiles: %+v", selfDir, downloadFiles),
 		debug: true}
 
-	messages <- ActionMessage{msg: fmt.Sprintf("%s: downloading ...", multiwerfProlog), debug: true}
+	messages <- ActionMessage{msg: "Self-update: Downloading ...", debug: true}
 	err = btClient.DownloadFiles(latestVersion, selfDir, downloadFiles)
 	if err != nil {
 		messages <- ActionMessage{
 			comment: "self update error",
-			msg:     fmt.Sprintf("%s: download release error: %v", multiwerfProlog, err),
+			msg:     fmt.Sprintf("Self-update: Download release error: %v", err),
 			msgType: FailMsgType,
 			stage:   "self-update"}
 		return ""
@@ -268,7 +266,7 @@ func SelfUpdate(messages chan ActionMessage) string {
 	if err != nil {
 		messages <- ActionMessage{
 			comment: "self update error",
-			msg:     fmt.Sprintf("%s: download %s error: %v", multiwerfProlog, files["hash"], err),
+			msg:     fmt.Sprintf("Self-update: Download %s error: %v", files["hash"], err),
 			msgType: FailMsgType,
 			stage:   "self-update"}
 		return ""
@@ -280,7 +278,7 @@ func SelfUpdate(messages chan ActionMessage) string {
 	if err != nil {
 		messages <- ActionMessage{
 			comment: "self update error",
-			msg:     fmt.Sprintf("%s: %s hash verification error: %v", multiwerfProlog, files["program"], err),
+			msg:     fmt.Sprintf("Self-update: %s hash verification error: %v", files["program"], err),
 			msgType: FailMsgType,
 			stage:   "self-update"}
 		return ""
@@ -288,7 +286,7 @@ func SelfUpdate(messages chan ActionMessage) string {
 	if !match {
 		messages <- ActionMessage{
 			comment: "self update error",
-			msg:     fmt.Sprintf("%s: %s hash is not verified", multiwerfProlog, files["program"]),
+			msg:     fmt.Sprintf("Self-update: %s hash is not verified", files["program"]),
 			msgType: FailMsgType,
 			stage:   "self-update"}
 		return ""
@@ -299,7 +297,7 @@ func SelfUpdate(messages chan ActionMessage) string {
 	if err != nil {
 		messages <- ActionMessage{
 			comment: "self update error",
-			msg:     fmt.Sprintf("%s: chmod 755 failed for %s: %v", multiwerfProlog, files["program"], err),
+			msg:     fmt.Sprintf("Self-update: Chmod 755 failed for %s: %v", files["program"], err),
 			msgType: FailMsgType,
 			stage:   "self-update"}
 		return ""
@@ -309,14 +307,14 @@ func SelfUpdate(messages chan ActionMessage) string {
 	if err != nil {
 		messages <- ActionMessage{
 			comment: "self update error",
-			msg:     fmt.Sprintf("%s: replace executable error: %v", multiwerfProlog, err),
+			msg:     fmt.Sprintf("Self-update: Replace executable error: %v", err),
 			msgType: FailMsgType,
 			stage:   "self-update"}
 		return ""
 	}
 
 	messages <- ActionMessage{
-		msg:     fmt.Sprintf("%s: successfully updated to %s", multiwerfProlog, latestVersion),
+		msg:     fmt.Sprintf("Self-update: Successfully updated to %s", latestVersion),
 		msgType: OkMsgType,
 		stage:   "self-update"}
 	return selfPath

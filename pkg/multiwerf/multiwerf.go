@@ -38,7 +38,7 @@ type UpdateOptions struct {
 // - channel - a string with channel name
 // - options.SkipSelfUpdate - a boolean to perform self-update
 // - options.WithCache - a boolean to try or not getting remote channel mapping
-// - options.OutputFile - a file path to write update output
+// - options.OutputFile - a string to write update output to file
 func Update(group, channel string, options UpdateOptions) (err error) {
 	var w io.Writer
 	if options.OutputFile != "" {
@@ -167,7 +167,12 @@ func Use(group, channel string, shell string, options UseOptions) (err error) {
 	}
 
 	foregroundUpdateArgs := commonUpdateArgs[0:]
-	backgroundUpdateArgs := commonUpdateArgs[0:]
+
+	backgroundUpdateArgs := append(
+		commonUpdateArgs[0:],
+		"--in-background",
+		fmt.Sprintf("--output-file=%s", backgroundUpdateLogPath),
+	)
 	if !options.ForceRemoteCheck {
 		backgroundUpdateArgs = append(backgroundUpdateArgs, "--with-cache")
 	}
@@ -177,7 +182,6 @@ func Use(group, channel string, shell string, options UseOptions) (err error) {
 		strings.Join(foregroundUpdateArgs, " "), // %[2]s: group channel [flag ...]
 		strings.Join(backgroundUpdateArgs, " "), // %[3]s: group channel [flag ...]
 		firstWerfPathLogPath,                    // %[4]s: multiwerf_use_first_werf_path.log
-		backgroundUpdateLogPath,                 // %[5]s: multiwerf_use_background_update.log
 	}
 
 	var filename = "werf_source"
@@ -195,7 +199,7 @@ IF %%ERRORLEVEL%% NEQ 0 (
     multiwerf update %[2]s 
     FOR /F "tokens=*" %%%%g IN ('multiwerf werf-path %[1]s') do (SET WERF_PATH=%%%%g)
 ) ELSE (
-    multiwerf update %[3]s --in-background --output-file=%[5]s
+    multiwerf update %[3]s
 )
 
 DOSKEY werf=%%WERF_PATH%% $*
@@ -204,7 +208,7 @@ DOSKEY werf=%%WERF_PATH%% $*
 		filenameExt = "ps1"
 		fileContent = fmt.Sprintf(`
 if ((Invoke-Expression -Command "multiwerf werf-path %[1]s" | Out-String -OutVariable WERF_PATH) -and ($LastExitCode -eq 0)) {
-    multiwerf update %[3]s --in-background --output-file=%[5]s
+    multiwerf update %[3]s 
 } else {
     multiwerf update %[2]s
 	Invoke-Expression -Command "multiwerf werf-path %[1]s" | Out-String -OutVariable WERF_PATH
@@ -216,7 +220,7 @@ function werf { & $WERF_PATH.Trim() $args }
 		if runtime.GOOS == "windows" {
 			fileContent = fmt.Sprintf(`
 if multiwerf werf-path %[1]s >%[4]s 2>&1; then
-    multiwerf update %[3]s --in-background --output-file=%[5]s
+    multiwerf update %[3]s
 else
     multiwerf update %[2]s
 fi
@@ -235,7 +239,7 @@ eval "$WERF_FUNC"
 		} else {
 			fileContent = fmt.Sprintf(`
 if multiwerf werf-path %[1]s >%[4]s 2>&1; then
-    multiwerf update %[3]s --in-background --output-file=%[5]s
+    multiwerf update %[3]s
 else
     multiwerf update %[2]s
 fi
