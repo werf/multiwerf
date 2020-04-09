@@ -44,8 +44,8 @@ var _ = Describe("update command", func() {
 
 			for _, substr := range []string{
 				"Starting multiwerf self-update ...",
-				"multiwerf dev self-update: detect version",
-				"multiwerf dev self-update: successfully updated to",
+				"Self-update: Detect version",
+				"Self-update: Successfully updated to",
 			} {
 				Ω(output).Should(ContainSubstring(substr))
 			}
@@ -129,6 +129,7 @@ var _ = Describe("update command", func() {
 			multiwerfArgs: []string{"update", "0.0", "stable"},
 			checksAfterFirstStep: func(output string) {
 				for _, substr := range []string{
+					"GC: Nothing to clean",
 					"The version v0.0.0 is the actual for channel 0.0/stable",
 					"Downloading the version v0.0.0 ...",
 					"The actual version has been successfully downloaded",
@@ -136,12 +137,14 @@ var _ = Describe("update command", func() {
 					Ω(output).Should(ContainSubstring(substr))
 				}
 
-				multiwerfJsonShouldBeEqualRemoteChannelMapping(remoteChannelMapping1Url)
+				multiwerfJsonShouldBeEqualRemoteChannelMapping(filepath.Join(storageDir, "multiwerf.json"), remoteChannelMapping1Url)
+				Ω(filepath.Join(storageDir, "multiwerf.json.old")).ShouldNot(BeAnExistingFile())
 				releaseFilesShouldBeExist(actualStableVersion1)
 				storageTmpDirShouldBeEmpty()
 			},
 			checksAfterSecondStep: func(output string) {
 				for _, substr := range []string{
+					"GC: Nothing to clean",
 					"The version v0.0.0 is the actual for channel 0.0/stable",
 					"The actual version is available locally",
 				} {
@@ -152,6 +155,7 @@ var _ = Describe("update command", func() {
 			},
 			checksAfterThirdStep: func(output string) {
 				for _, substr := range []string{
+					"GC: Nothing to clean",
 					"The version v0.0.1 is the actual for channel 0.0/stable",
 					"Downloading the version v0.0.1 ...",
 					"The actual version has been successfully downloaded",
@@ -159,7 +163,8 @@ var _ = Describe("update command", func() {
 					Ω(output).Should(ContainSubstring(substr))
 				}
 
-				multiwerfJsonShouldBeEqualRemoteChannelMapping(remoteChannelMapping2Url)
+				multiwerfJsonShouldBeEqualRemoteChannelMapping(filepath.Join(storageDir, "multiwerf.json"), remoteChannelMapping2Url)
+				multiwerfJsonShouldBeEqualRemoteChannelMapping(filepath.Join(storageDir, "multiwerf.json.old"), remoteChannelMapping1Url)
 				releaseFilesShouldBeExist(actualStableVersion2)
 				storageTmpDirShouldBeEmpty()
 			},
@@ -211,8 +216,7 @@ var _ = Describe("update command", func() {
 	})
 })
 
-func multiwerfJsonShouldBeEqualRemoteChannelMapping(remoteChannelMappingUrl string) {
-	multiwerfJsonFilePath := filepath.Join(storageDir, "multiwerf.json")
+func multiwerfJsonShouldBeEqualRemoteChannelMapping(multiwerfJsonFilePath, remoteChannelMappingUrl string) {
 	Ω(multiwerfJsonFilePath).Should(BeARegularFile(), "remote channel mapping should be downloaded to multiwerf.json")
 
 	data, err := ioutil.ReadFile(multiwerfJsonFilePath)

@@ -40,6 +40,9 @@ var (
 	selfUpdateDefault = "yes"
 	selfUpdateHelp    = "Perform multiwerf self-update. To disable set to 'no'."
 
+	withGCDefault = "yes"
+	withGCHelp    = "Run GC before update."
+
 	shellDefault = "default"
 )
 
@@ -52,6 +55,7 @@ func main() {
 	useCommand(kpApp)
 	werfPathCommand(kpApp)
 	werfExecCommand(kpApp)
+	werfGCCommand(kpApp)
 	versionCommand(kpApp)
 
 	command, err := kpApp.Parse(os.Args[1:])
@@ -68,6 +72,7 @@ func updateCommand(kpApp *kingpin.Application) {
 		update             string
 		selfUpdate         string
 		withCache          bool
+		withGC             string
 		updateInBackground bool
 		updateOutputFile   string
 	)
@@ -104,6 +109,7 @@ func updateCommand(kpApp *kingpin.Application) {
 			options := multiwerf.UpdateOptions{
 				SkipSelfUpdate:          selfUpdate == "no",
 				WithCache:               withCache,
+				WithGC:                  withGC == "yes",
 				TryRemoteChannelMapping: update == "yes",
 				OutputFile:              updateOutputFile,
 			}
@@ -129,6 +135,10 @@ func updateCommand(kpApp *kingpin.Application) {
 		Envar("MULTIWERF_SELF_UPDATE").
 		Default(selfUpdateDefault).
 		StringVar(&selfUpdate)
+	updateCmd.Flag("with-gc", withGCHelp).
+		Envar("MULTIWERF_WITH_GC").
+		Default(withGCDefault).
+		StringVar(&withGC)
 	updateCmd.Flag("update", updateHelp).
 		Envar("MULTIWERF_UPDATE").
 		Default(updateDefault).
@@ -145,6 +155,7 @@ func useCommand(kpApp *kingpin.Application) {
 		channelStr       string
 		update           string
 		selfUpdate       string
+		withGC           string
 		forceRemoteCheck bool
 		shell            string
 		asFile           bool
@@ -160,6 +171,7 @@ func useCommand(kpApp *kingpin.Application) {
 				AsFile:                  asFile,
 				SkipSelfUpdate:          selfUpdate == "no",
 				TryRemoteChannelMapping: update == "yes",
+				WithGC:                  withGC == "yes",
 			}
 
 			if err := multiwerf.Use(groupStr, channelStr, shell, options); err != nil {
@@ -187,6 +199,10 @@ func useCommand(kpApp *kingpin.Application) {
 		Envar("MULTIWERF_SELF_UPDATE").
 		Default(selfUpdateDefault).
 		StringVar(&selfUpdate)
+	useCmd.Flag("with-gc", withGCHelp).
+		Envar("MULTIWERF_WITH_GC").
+		Default(withGCDefault).
+		StringVar(&withGC)
 	useCmd.Flag("update", updateHelp).
 		Envar("MULTIWERF_UPDATE").
 		Default(updateDefault).
@@ -246,6 +262,19 @@ func werfExecCommand(kpApp *kingpin.Application) {
 		EnumVar(&channelStr, channelEnum...)
 	werfExecCmd.Arg("WERF_ARGS", "Pass args to werf binary.").
 		StringsVar(&werfArgs)
+}
+
+func werfGCCommand(kpApp *kingpin.Application) {
+	kpApp.
+		Command("gc", "Run garbage collection.").
+		Action(func(c *kingpin.ParseContext) error {
+			err := multiwerf.GC()
+			if err != nil {
+				_, _ = fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+			return nil
+		})
 }
 
 func versionCommand(kpApp *kingpin.Application) *kingpin.CmdClause {

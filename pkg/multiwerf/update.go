@@ -150,7 +150,7 @@ func downloadAndVerifyReleaseFiles(messages chan ActionMessage, version string, 
 		return nil, fmt.Errorf("create tmp dir failed: %s", err)
 	}
 
-	dstPath := filepath.Join(StorageDir, version)
+	dstPath := localVersionDirPath(version)
 	files := ReleaseFiles(app.BintrayPackage, version, app.OsArch)
 
 	messages <- ActionMessage{
