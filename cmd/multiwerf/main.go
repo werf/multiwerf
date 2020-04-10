@@ -34,35 +34,48 @@ var (
 		"rock-solid",
 	}
 
-	updateHelp = "Try to download remote channel mapping and sync channel werf version. To disable set to 'no'."
+	updateDefault = "yes"
+	updateHelp    = "Try to download remote channel mapping and sync channel werf version. To disable set to 'no'."
 
-	selfUpdateHelp = "Perform multiwerf self-update. To disable set to 'no'."
+	selfUpdateDefault = "yes"
+	selfUpdateHelp    = "Perform multiwerf self-update. To disable set to 'no'."
+
+	withGCDefault = "yes"
+	withGCHelp    = "Run GC before update."
+
+	shellDefault = "default"
 )
 
 func main() {
 	kpApp := kingpin.New(app.AppName, fmt.Sprintf("%s %s: %s", app.AppName, app.Version, app.AppDescription))
 
-	// global defaults
 	app.SetupGlobalSettings(kpApp)
 
-	//kpApp.HelpFlag
+	updateCommand(kpApp)
+	useCommand(kpApp)
+	werfPathCommand(kpApp)
+	werfExecCommand(kpApp)
+	werfGCCommand(kpApp)
+	versionCommand(kpApp)
 
-	// multiwerf version
-	kpApp.Command("version", "Show version.").Action(func(c *kingpin.ParseContext) error {
-		fmt.Printf("%s %s\n", app.AppName, app.Version)
-		return nil
-	})
+	command, err := kpApp.Parse(os.Args[1:])
+	if err != nil {
+		kingpin.MustParse(command, err)
+		os.Exit(1)
+	}
+}
 
-	var groupStr string
-	var channelStr string
-	var update = "yes"
-	var selfUpdate = "yes"
-	var forceRemoteCheck bool
-	var shell = "default"
-	var withCache bool
-	var asFile bool
-	var updateInBackground bool
-	var updateOutputFile string
+func updateCommand(kpApp *kingpin.Application) {
+	var (
+		groupStr           string
+		channelStr         string
+		update             string
+		selfUpdate         string
+		withCache          bool
+		withGC             string
+		updateInBackground bool
+		updateOutputFile   string
+	)
 
 	// multiwerf update
 	updateCmd := kpApp.
@@ -96,6 +109,7 @@ func main() {
 			options := multiwerf.UpdateOptions{
 				SkipSelfUpdate:          selfUpdate == "no",
 				WithCache:               withCache,
+				WithGC:                  withGC == "yes",
 				TryRemoteChannelMapping: update == "yes",
 				OutputFile:              updateOutputFile,
 			}
@@ -119,18 +133,34 @@ func main() {
 		BoolVar(&withCache)
 	updateCmd.Flag("self-update", selfUpdateHelp).
 		Envar("MULTIWERF_SELF_UPDATE").
-		Default(selfUpdate).
+		Default(selfUpdateDefault).
 		StringVar(&selfUpdate)
+	updateCmd.Flag("with-gc", withGCHelp).
+		Envar("MULTIWERF_WITH_GC").
+		Default(withGCDefault).
+		StringVar(&withGC)
 	updateCmd.Flag("update", updateHelp).
 		Envar("MULTIWERF_UPDATE").
-		Default(update).
+		Default(updateDefault).
 		StringVar(&update)
 	updateCmd.Flag("in-background", "Enable running process in background").
 		BoolVar(&updateInBackground)
 	updateCmd.Flag("output-file", "Save command output in file").
 		StringVar(&updateOutputFile)
+}
 
-	// multiwerf use
+func useCommand(kpApp *kingpin.Application) {
+	var (
+		groupStr         string
+		channelStr       string
+		update           string
+		selfUpdate       string
+		withGC           string
+		forceRemoteCheck bool
+		shell            string
+		asFile           bool
+	)
+
 	useCmd := kpApp.
 		Command("use", "Generate the shell script that should be sourced to use the actual channel werf binary in the current shell session based on the local channel mapping.").
 		Action(func(c *kingpin.ParseContext) error {
@@ -141,6 +171,7 @@ func main() {
 				AsFile:                  asFile,
 				SkipSelfUpdate:          selfUpdate == "no",
 				TryRemoteChannelMapping: update == "yes",
+				WithGC:                  withGC == "yes",
 			}
 
 			if err := multiwerf.Use(groupStr, channelStr, shell, options); err != nil {
@@ -160,20 +191,30 @@ func main() {
 	useCmd.Flag("force-remote-check", "Do not use '--with-cache' option with background multiwerf update command.").
 		BoolVar(&forceRemoteCheck)
 	useCmd.Flag("shell", "Set to 'cmdexe', 'powershell' or use the default behaviour that is compatible with any unix shell.").
-		Default(shell).
+		Default(shellDefault).
 		EnumVar(&shell, []string{"default", "cmdexe", "powershell"}...)
 	useCmd.Flag("as-file", "Create the script and print the path for sourcing.").
 		BoolVar(&asFile)
 	useCmd.Flag("self-update", selfUpdateHelp).
 		Envar("MULTIWERF_SELF_UPDATE").
-		Default(selfUpdate).
+		Default(selfUpdateDefault).
 		StringVar(&selfUpdate)
+	useCmd.Flag("with-gc", withGCHelp).
+		Envar("MULTIWERF_WITH_GC").
+		Default(withGCDefault).
+		StringVar(&withGC)
 	useCmd.Flag("update", updateHelp).
 		Envar("MULTIWERF_UPDATE").
-		Default(update).
+		Default(updateDefault).
 		StringVar(&update)
+}
 
-	// multiwerf werf-path
+func werfPathCommand(kpApp *kingpin.Application) {
+	var (
+		groupStr   string
+		channelStr string
+	)
+
 	werfPathCmd := kpApp.
 		Command("werf-path", "Print the actual channel werf binary path based on the local channel mapping.").
 		Action(func(c *kingpin.ParseContext) error {
@@ -193,10 +234,13 @@ func main() {
 		HintOptions(channels...).
 		Default("stable").
 		EnumVar(&channelStr, channelEnum...)
+}
 
+func werfExecCommand(kpApp *kingpin.Application) {
+	var groupStr string
+	var channelStr string
 	var werfArgs []string
 
-	// multiwerf werf-exec
 	werfExecCmd := kpApp.
 		Command("werf-exec", "Exec the actual channel werf binary based on the local channel mapping.").
 		Action(func(c *kingpin.ParseContext) error {
@@ -218,12 +262,26 @@ func main() {
 		EnumVar(&channelStr, channelEnum...)
 	werfExecCmd.Arg("WERF_ARGS", "Pass args to werf binary.").
 		StringsVar(&werfArgs)
+}
 
-	command, err := kpApp.Parse(os.Args[1:])
-	if err != nil {
-		kingpin.MustParse(command, err)
-		os.Exit(1)
-	}
+func werfGCCommand(kpApp *kingpin.Application) {
+	kpApp.
+		Command("gc", "Run garbage collection.").
+		Action(func(c *kingpin.ParseContext) error {
+			err := multiwerf.GC()
+			if err != nil {
+				_, _ = fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+			return nil
+		})
+}
+
+func versionCommand(kpApp *kingpin.Application) *kingpin.CmdClause {
+	return kpApp.Command("version", "Show version.").Action(func(c *kingpin.ParseContext) error {
+		fmt.Printf("%s %s\n", app.AppName, app.Version)
+		return nil
+	})
 }
 
 func normalizeChannel(value string) string {

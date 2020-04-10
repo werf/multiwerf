@@ -1,0 +1,13 @@
+{
+    "multiwerf": [
+        {
+            "group": "0.0",
+            "channels": [
+                {
+                    "name": "alpha",
+                    "version": "v0.0.1"
+                }
+            ]
+        }
+    ]
+}
