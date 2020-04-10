@@ -62,6 +62,7 @@ jobs:
   use_command:
     name: Use Command
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macOS-latest, windows-latest]
         shell: [sh, bash, cmd, powershell]
@@ -95,26 +96,31 @@ jobs:
         ./go-build.sh
       shell: bash
 
+    - name: Setup environment
+      run: |
+        export MULTIWERF_STORAGE_DIR=$PWD/.multiwerf
+        mkdir $MULTIWERF_STORAGE_DIR
+        echo "::set-env name=MULTIWERF_STORAGE_DIR::$MULTIWERF_STORAGE_DIR"
+      shell: bash
+      if: matrix.os == 'windows-latest'
+
     - name: Install werf (sh)
       run: |
-        export MULTIWERF_SELF_UPDATE=no
-        . $(multiwerf use 1.0 stable --shell default --as-file)
+        . $(multiwerf use 1.0 stable --as-file --self-update=no --shell default)
         werf
       shell: sh
       if: matrix.shell == 'sh'
 
     - name: Install werf (bash)
       run: |
-        export MULTIWERF_SELF_UPDATE=no
-        . $(multiwerf use 1.0 stable --shell default --as-file)
+        . $(multiwerf use 1.0 stable --as-file --self-update=no --shell default)
         werf
       shell: bash
       if: matrix.shell == 'bash'
 
     - name: Install werf (cmd)
       run: |
-        set MULTIWERF_SELF_UPDATE=no
-        FOR /F "tokens=*" %%g IN ('multiwerf use 1.0 stable --as-file --shell cmdexe') do (SET WERF_USE_SCRIPT_PATH=%%g)
+        FOR /F "tokens=*" %%g IN ('multiwerf use 1.0 stable --as-file --self-update=no --shell cmdexe') do (SET WERF_USE_SCRIPT_PATH=%%g)
         %WERF_USE_SCRIPT_PATH%
         werf
       shell: cmd
@@ -122,17 +128,106 @@ jobs:
 
     - name: Install werf (powershell)
       run: |
-        set MULTIWERF_SELF_UPDATE=no
-        Invoke-Expression -Command "multiwerf use 1.0 stable --as-file --shell powershell" | Out-String -OutVariable WERF_USE_SCRIPT_PATH
+        Invoke-Expression -Command "multiwerf use 1.0 stable --as-file --self-update=no --shell powershell" | Out-String -OutVariable WERF_USE_SCRIPT_PATH
         . $WERF_USE_SCRIPT_PATH.Trim()
         werf
+      shell: powershell
+      if: matrix.shell == 'powershell'
+
+    - name: Self-update in the background (sh)
+      run: |
+        . $(multiwerf use 1.0 stable --as-file --self-update=yes --shell default)
+        old_multiwerf_version=$(multiwerf version)
+
+        werf
+
+        ps aux | grep '[m]ultiwerf'
+        while ps aux | grep '[m]ultiwerf'
+        do
+          echo "sleep for 1 second"
+          sleep 1
+        done
+
+        current_multiwerf_version=$(multiwerf version)
+        echo "old: $old_multiwerf_version, current: $current_multiwerf_version"
+        [ "$old_multiwerf_version" != "$current_multiwerf_version" ] || exit 1
+      shell: sh
+      if: matrix.shell == 'sh'
+
+    - name: Self-update in the background (bash)
+      run: |
+        . $(multiwerf use 1.0 stable --as-file --self-update=yes --shell default)
+        old_multiwerf_version=$(multiwerf version)
+
+        werf
+
+        ps aux | grep '[m]ultiwerf'
+        while ps aux | grep '[m]ultiwerf'
+        do
+          echo "sleep for 1 second"
+          sleep 1
+        done
+
+        current_multiwerf_version=$(multiwerf version)
+        echo "old: $old_multiwerf_version, current: $current_multiwerf_version"
+        [ "$old_multiwerf_version" != "$current_multiwerf_version" ] || exit 1
+      shell: bash
+      if: matrix.shell == 'bash' && matrix.os != 'windows-latest'
+
+    - name: Self-update in the background (bash, windows-latest)
+      run: |
+        . $(multiwerf use 1.0 stable --as-file --self-update=yes --shell default)
+        old_multiwerf_version=$(multiwerf version)
+
+        werf
+
+        sleep 10
+
+        current_multiwerf_version=$(multiwerf version)
+        echo "old: $old_multiwerf_version, current: $current_multiwerf_version"
+        [ "$old_multiwerf_version" != "$current_multiwerf_version" ] || exit 1
+      shell: bash
+      if: matrix.shell == 'bash' && matrix.os == 'windows-latest'
+
+    - name: Self-update in the background (cmd)
+      run: |
+        FOR /F "tokens=*" %%g IN ('multiwerf use 1.0 stable --as-file --self-update=yes --shell cmdexe') do (SET WERF_USE_SCRIPT_PATH=%%g)
+        %WERF_USE_SCRIPT_PATH%
+        FOR /F "tokens=*" %%g IN ('multiwerf version') do (SET old_multiwerf_version=%%g)
+
+        werf
+
+        timeout 10
+
+        FOR /F "tokens=*" %%g IN ('multiwerf version') do (SET current_multiwerf_version=%%g)
+        echo "old: %old_multiwerf_version%, current: %current_multiwerf_version%"
+        if "%old_multiwerf_version%" != "%current_multiwerf_version%" (exit 1)
+      shell: cmd
+      if: matrix.shell == 'cmd'
+
+    - name: Self-update in the background (powershell)
+      run: |
+        Invoke-Expression -Command "multiwerf use 1.0 stable --as-file --self-update=yes --shell powershell" | Out-String -OutVariable WERF_USE_SCRIPT_PATH
+        . $WERF_USE_SCRIPT_PATH.Trim()
+        Invoke-Expression -Command "multiwerf version" | Out-String -OutVariable old_multiwerf_version
+
+        werf
+
+        Start-Sleep -s 10
+
+        Invoke-Expression -Command "multiwerf version" | Out-String -OutVariable current_multiwerf_version
+
+        echo "old: $old_multiwerf_version"
+        echo "current: $current_multiwerf_version"
+        if ("$old_multiwerf_version" -eq "$current_multiwerf_version") { exit 1 }
       shell: powershell
       if: matrix.shell == 'powershell'
 
   upload_coverage:
     name: Upload coverage
     needs:
-      - tests
+    - tests
+    - use_command
     runs-on: ubuntu-latest
     steps:
 

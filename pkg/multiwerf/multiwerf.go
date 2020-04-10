@@ -3,6 +3,7 @@ package multiwerf
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -26,6 +27,7 @@ type UpdateOptions struct {
 	SkipSelfUpdate          bool
 	TryRemoteChannelMapping bool
 	WithCache               bool
+	OutputFile              string
 }
 
 // Update checks for the actual version for group/channel and downloads it to StorageDir if it does not already exist
@@ -36,8 +38,27 @@ type UpdateOptions struct {
 // - channel - a string with channel name
 // - options.SkipSelfUpdate - a boolean to perform self-update
 // - options.WithCache - a boolean to try or not getting remote channel mapping
+// - options.OutputFile - a file path to write update output
 func Update(group, channel string, options UpdateOptions) (err error) {
-	printer := output.NewSimplePrint()
+	var w io.Writer
+	if options.OutputFile != "" {
+		dirPath := filepath.Dir(options.OutputFile)
+		if err := os.MkdirAll(dirPath, 0755); err != nil {
+			return fmt.Errorf("mkdir '%s' failed: %s", dirPath, err)
+		}
+
+		f, err := os.OpenFile(options.OutputFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+		if err != nil {
+			return fmt.Errorf("open log file '%s' failed: %s", options.OutputFile, err)
+		}
+		defer f.Close()
+
+		w = f
+	} else {
+		w = os.Stdout
+	}
+
+	printer := output.NewSimplePrint(w)
 
 	if err := ValidateGroup(group, printer); err != nil {
 		return err
@@ -174,7 +195,7 @@ IF %%ERRORLEVEL%% NEQ 0 (
     multiwerf update %[2]s 
     FOR /F "tokens=*" %%%%g IN ('multiwerf werf-path %[1]s') do (SET WERF_PATH=%%%%g)
 ) ELSE (
-    START /B multiwerf update %[3]s >%[5]s 2>&1
+    multiwerf update %[3]s --in-background --output-file=%[5]s
 )
 
 DOSKEY werf=%%WERF_PATH%% $*
@@ -182,11 +203,11 @@ DOSKEY werf=%%WERF_PATH%% $*
 	case "powershell":
 		filenameExt = "ps1"
 		fileContent = fmt.Sprintf(`
-if (Invoke-Expression -Command "multiwerf werf-path %[1]s >%[4]s 2>&1" | Out-String -OutVariable WERF_PATH) {
-    Start-Job { multiwerf update %[3]s >%[5]s 2>&1 }
+if ((Invoke-Expression -Command "multiwerf werf-path %[1]s" | Out-String -OutVariable WERF_PATH) -and ($LastExitCode -eq 0)) {
+    multiwerf update %[3]s --in-background --output-file=%[5]s
 } else {
     multiwerf update %[2]s
-    Invoke-Expression -Command "multiwerf werf-path %[1]s" | Out-String -OutVariable WERF_PATH
+	Invoke-Expression -Command "multiwerf werf-path %[1]s" | Out-String -OutVariable WERF_PATH
 }
 
 function werf { & $WERF_PATH.Trim() $args }
@@ -195,7 +216,7 @@ function werf { & $WERF_PATH.Trim() $args }
 		if runtime.GOOS == "windows" {
 			fileContent = fmt.Sprintf(`
 if multiwerf werf-path %[1]s >%[4]s 2>&1; then
-    (multiwerf update %[3]s >%[5]s 2>&1 </dev/null &)
+    multiwerf update %[3]s --in-background --output-file=%[5]s
 else
     multiwerf update %[2]s
 fi
@@ -214,7 +235,7 @@ eval "$WERF_FUNC"
 		} else {
 			fileContent = fmt.Sprintf(`
 if multiwerf werf-path %[1]s >%[4]s 2>&1; then
-    (setsid multiwerf update %[3]s >%[5]s 2>&1 </dev/null &)
+    multiwerf update %[3]s --in-background --output-file=%[5]s
 else
     multiwerf update %[2]s
 fi

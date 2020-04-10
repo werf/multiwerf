@@ -2,23 +2,25 @@ package output
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/fatih/color"
 )
 
 type SimplePrint struct {
+	writer io.Writer
 }
 
-func NewSimplePrint() *SimplePrint {
-	return &SimplePrint{}
+func NewSimplePrint(w io.Writer) *SimplePrint {
+	return &SimplePrint{writer: w}
 }
 
 func (p *SimplePrint) Cprintf(colorAttribute *color.Attribute, format string, args ...interface{}) (n int, err error) {
 	if colorAttribute == nil {
-		return fmt.Printf(format, args...)
+		return fmt.Fprintf(p.writer, format, args...)
 	}
 
-	return color.New(*colorAttribute).Printf(format, args...)
+	return color.New(*colorAttribute).Fprintf(p.writer, format, args...)
 }
 
 func (p *SimplePrint) Error(err error) {
@@ -28,7 +30,7 @@ func (p *SimplePrint) Error(err error) {
 }
 
 func (p *SimplePrint) DebugMessage(message, comment string) {
-	fmt.Printf("%s (%s)\n", message, comment)
+	_, _ = fmt.Fprintf(p.writer, "%s (%s)\n", message, comment)
 }
 
 func (p *SimplePrint) Message(message string, colorAttribute *color.Attribute, comment string) {

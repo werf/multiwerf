@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -60,17 +61,43 @@ func main() {
 	var shell = "default"
 	var withCache bool
 	var asFile bool
+	var updateInBackground bool
+	var updateOutputFile string
 
 	// multiwerf update
 	updateCmd := kpApp.
 		Command("update", "Perform self-update and download the actual channel werf binary.").
 		Action(func(c *kingpin.ParseContext) error {
+			if updateInBackground {
+				var args []string
+				for _, arg := range os.Args[1:] {
+					if arg == "--in-background" || strings.HasPrefix(arg, "--in-background=") {
+						continue
+					}
+					args = append(args, arg)
+				}
+
+				cmd := exec.Command(os.Args[0], args...)
+				if err := cmd.Start(); err != nil {
+					fmt.Printf("command '%s' start failed: %s\n", strings.Join(append(os.Args[:0], args...), " "), err.Error())
+					os.Exit(1)
+				}
+
+				if err := cmd.Process.Release(); err != nil {
+					fmt.Printf("process release failed: %s\n", err.Error())
+					return err
+				}
+
+				os.Exit(0)
+			}
+
 			channelStr = normalizeChannel(channelStr)
 
 			options := multiwerf.UpdateOptions{
 				SkipSelfUpdate:          selfUpdate == "no",
 				WithCache:               withCache,
 				TryRemoteChannelMapping: update == "yes",
+				OutputFile:              updateOutputFile,
 			}
 
 			// TODO add special error to exit with 1 and not print error message with kingpin
@@ -98,6 +125,10 @@ func main() {
 		Envar("MULTIWERF_UPDATE").
 		Default(update).
 		StringVar(&update)
+	updateCmd.Flag("in-background", "Enable running process in background").
+		BoolVar(&updateInBackground)
+	updateCmd.Flag("output-file", "Save command output in file").
+		StringVar(&updateOutputFile)
 
 	// multiwerf use
 	useCmd := kpApp.
@@ -188,7 +219,11 @@ func main() {
 	werfExecCmd.Arg("WERF_ARGS", "Pass args to werf binary.").
 		StringsVar(&werfArgs)
 
-	kingpin.MustParse(kpApp.Parse(os.Args[1:]))
+	command, err := kpApp.Parse(os.Args[1:])
+	if err != nil {
+		kingpin.MustParse(command, err)
+		os.Exit(1)
+	}
 }
 
 func normalizeChannel(value string) string {
