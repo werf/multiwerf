@@ -26,12 +26,6 @@ func PerformSelfUpdate(printer output.Printer, skipSelfUpdate bool) (err error) 
 
 	go func() {
 		if skipSelfUpdate {
-			// self-update is disabled. Silently skip it
-			messages <- ActionMessage{
-				msg:     fmt.Sprintf("%s %s", app.AppName, app.Version),
-				msgType: OkMsgType,
-			}
-
 			messages <- ActionMessage{
 				msg:   "self-update is disabled",
 				debug: true,
@@ -47,12 +41,7 @@ func PerformSelfUpdate(printer output.Printer, skipSelfUpdate bool) (err error) 
 		defer func() { _ = shluz.Unlock(SelfUpdateLockName) }()
 		if err != nil {
 			messages <- ActionMessage{
-				msg:     fmt.Sprintf("%s %s", app.AppName, app.Version),
-				msgType: WarnMsgType,
-			}
-
-			messages <- ActionMessage{
-				msg:     fmt.Sprintf("Skip Self-update: Cannot acquire a lock: %v", err),
+				msg:     fmt.Sprintf("Self-update: Cannot acquire a lock: %v", err),
 				msgType: WarnMsgType,
 			}
 
@@ -62,12 +51,7 @@ func PerformSelfUpdate(printer output.Printer, skipSelfUpdate bool) (err error) 
 		} else {
 			if !isAcquired {
 				messages <- ActionMessage{
-					msg:     fmt.Sprintf("%s %s", app.AppName, app.Version),
-					msgType: WarnMsgType,
-				}
-
-				messages <- ActionMessage{
-					msg:     "Self-update has been skipped because the operation is performing by another process",
+					msg:     "Self-update: Skipped due to performing the operation by another process",
 					msgType: WarnMsgType,
 				}
 
