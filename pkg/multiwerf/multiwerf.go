@@ -206,7 +206,6 @@ func Use(group, channel string, shell string, options UseOptions) (err error) {
 		filenameExt = "bat"
 		fileContent = fmt.Sprintf(`
 FOR /F "tokens=*" %%%%g IN ('multiwerf werf-path %[1]s') do (SET WERF_PATH=%%%%g)
-echo %%WERF_USE_SCRIPT_PATH%% > %[4]s
 
 IF %%ERRORLEVEL%% NEQ 0 (
     multiwerf update %[2]s 
@@ -224,7 +223,7 @@ if ((Invoke-Expression -Command "multiwerf werf-path %[1]s" | Out-String -OutVar
     multiwerf update %[3]s 
 } else {
     multiwerf update %[2]s
-	Invoke-Expression -Command "multiwerf werf-path %[1]s" | Out-String -OutVariable WERF_PATH
+    Invoke-Expression -Command "multiwerf werf-path %[1]s" | Out-String -OutVariable WERF_PATH
 }
 
 function werf { & $WERF_PATH.Trim() $args }
@@ -274,7 +273,7 @@ eval "$WERF_FUNC"
 	fileContent = fmt.Sprintln(strings.TrimSpace(fileContent))
 
 	if !options.AsFile {
-		fmt.Printf(fileContent)
+		fmt.Printf("%s", fileContent)
 	} else {
 		if options.ForceRemoteCheck {
 			filename = strings.Join([]string{filename, "force_remote_check"}, "_with_")
