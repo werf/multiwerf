@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/flant/shluz"
 
@@ -103,6 +104,23 @@ func UseChannelVersionBinary(messages chan ActionMessage, group string, channel 
 	messages <- ActionMessage{
 		msg:   "Starting UseChannelVersionBinary",
 		debug: true,
+	}
+
+	for _, envName := range []string{
+		fmt.Sprintf("MULTIWERF_WERF_PATH_%s_%s_FORCE", strings.ReplaceAll(group, ".", "_"), strings.ToUpper(channel)),
+		"MULTIWERF_WERF_PATH_FORCE",
+	} {
+		binaryPath := os.Getenv(envName)
+		if binaryPath != "" {
+			messages <- ActionMessage{
+				msg:   fmt.Sprintf("Force binary path %s is used", binaryPath),
+				debug: true,
+			}
+
+			return &BinaryInfo{
+				BinaryPath: binaryPath,
+			}
+		}
 	}
 
 	channelMapping, err := GetChannelMapping(messages, false)
