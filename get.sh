@@ -158,6 +158,6 @@ To learn more, execute:
 
 To use latest werf, execute:
 
-    $ source <(./${PROGRAM} use 1.0 beta)
+    $ source $(./${PROGRAM} use 1.1 stable --as-file)
 
 EOF
