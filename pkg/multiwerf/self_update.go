@@ -9,12 +9,13 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/flant/shluz"
+	"github.com/werf/lockgate"
 
-	"github.com/flant/multiwerf/pkg/app"
-	"github.com/flant/multiwerf/pkg/bintray"
-	"github.com/flant/multiwerf/pkg/output"
-	"github.com/flant/multiwerf/pkg/util"
+	"github.com/werf/multiwerf/pkg/app"
+	"github.com/werf/multiwerf/pkg/bintray"
+	"github.com/werf/multiwerf/pkg/locker"
+	"github.com/werf/multiwerf/pkg/output"
+	"github.com/werf/multiwerf/pkg/util"
 )
 
 const SelfUpdateLockName = "self-update"
@@ -36,30 +37,29 @@ func PerformSelfUpdate(printer output.Printer, skipSelfUpdate bool) (err error) 
 			return
 		}
 
-		// Acquire a shluz
-		isAcquired, err := shluz.TryLock(SelfUpdateLockName, shluz.TryLockOptions{ReadOnly: false})
-		defer func() { _ = shluz.Unlock(SelfUpdateLockName) }()
+		// Acquire a lock
+		isAcquired, lockHandle, err := locker.Locker.Acquire(SelfUpdateLockName, lockgate.AcquireOptions{NonBlocking: true})
 		if err != nil {
 			messages <- ActionMessage{
-				msg:     fmt.Sprintf("Self-update: Cannot acquire a lock: %v", err),
+				msg:     fmt.Sprintf("Self-update: Cannot acquire a lock %s: %v", SelfUpdateLockName, err),
 				msgType: WarnMsgType,
 			}
 
 			messages <- ActionMessage{action: "exit"}
 
 			return
-		} else {
-			if !isAcquired {
-				messages <- ActionMessage{
-					msg:     "Self-update: Skipped due to performing the operation by another process",
-					msgType: WarnMsgType,
-				}
-
-				messages <- ActionMessage{action: "exit"}
-
-				return
+		} else if !isAcquired {
+			messages <- ActionMessage{
+				msg:     "Self-update: Skipped due to performing the operation by another process",
+				msgType: WarnMsgType,
 			}
+
+			messages <- ActionMessage{action: "exit"}
+
+			return
 		}
+
+		defer func() { _ = locker.Locker.Release(lockHandle) }()
 
 		if !app.Experimental {
 			// Check for delay of self update

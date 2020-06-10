@@ -1,6 +1,6 @@
 #PUBLISH_GITHUB_TOKEN=         # github API token
-GITHUB_OWNER=flant     # github user/org
-GITHUB_REPO=multiwerf  # github repository
+GITHUB_OWNER=werf              # github user/org
+GITHUB_REPO=multiwerf          # github repository
 GITHUB_RELEASE_ID=
 
 github_create_release() {

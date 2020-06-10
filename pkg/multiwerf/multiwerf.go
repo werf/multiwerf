@@ -12,10 +12,10 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/flant/shluz"
-
-	"github.com/flant/multiwerf/pkg/app"
-	"github.com/flant/multiwerf/pkg/output"
+	"github.com/werf/lockgate/pkg/util"
+	"github.com/werf/multiwerf/pkg/app"
+	"github.com/werf/multiwerf/pkg/locker"
+	"github.com/werf/multiwerf/pkg/output"
 )
 
 var (
@@ -281,7 +281,7 @@ eval "$WERF_FUNC"
 
 		withExtraArgs := !reflect.DeepEqual(commonUpdateArgs, groupAndChannelArgs)
 		if withExtraArgs {
-			filename = strings.Join([]string{filename, shluz.MurmurHash(strings.Join(commonUpdateArgs, " "))}, "_")
+			filename = strings.Join([]string{filename, util.MurmurHash(strings.Join(commonUpdateArgs, " "))}, "_")
 		}
 
 		if filenameExt != "" {
@@ -441,9 +441,9 @@ func SetupStorageDir(printer output.Printer) error {
 			debug: true,
 		}
 
-		if err := shluz.Init(filepath.Join(StorageDir, "locks")); err != nil {
+		if err := locker.Init(filepath.Join(StorageDir, "locks")); err != nil {
 			messages <- ActionMessage{
-				err: fmt.Errorf("init shluz failed: %s", err),
+				err: fmt.Errorf("locker initialization failed: %s", err),
 			}
 		}
 

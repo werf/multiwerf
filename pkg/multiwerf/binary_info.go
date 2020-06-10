@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/flant/multiwerf/pkg/app"
+	"github.com/werf/multiwerf/pkg/app"
 )
 
 type BinaryInfo struct {

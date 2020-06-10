@@ -254,13 +254,13 @@ jobs:
     - name: Prepare coverage file
       run: |
         find $MULTIWERF_TEST_COVERAGE_DIR -type f -exec \
-          sed -i -e "s|/home/runner/work/multiwerf/multiwerf|github.com/flant/multiwerf|g" {} +
+          sed -i -e "s|/home/runner/work/multiwerf/multiwerf|github.com/werf/multiwerf|g" {} +
 
         find $MULTIWERF_TEST_COVERAGE_DIR -type f -exec \
-          sed -i -e "s|/Users/runner/runners/[0-9.]*/work/multiwerf/multiwerf|github.com/flant/multiwerf|g" {} +
+          sed -i -e "s|/Users/runner/runners/[0-9.]*/work/multiwerf/multiwerf|github.com/werf/multiwerf|g" {} +
 
         find $MULTIWERF_TEST_COVERAGE_DIR -type f -exec \
-          sed -i -e 's|D:\\a\\multiwerf\\multiwerf\\cmd\\multiwerf\\main.go|github.com/flant/multiwerf/cmd/multiwerf/main.go|g' {} +
+          sed -i -e 's|D:\\a\\multiwerf\\multiwerf\\cmd\\multiwerf\\main.go|github.com/werf/multiwerf/cmd/multiwerf/main.go|g' {} +
 
         coverage_files=$(find $MULTIWERF_TEST_COVERAGE_DIR -name '*.out')
         ./gocovmerge ${coverage_files[@]} > coverage.out
@@ -272,7 +272,7 @@ jobs:
 
         ./cc-test-reporter format-coverage \
           -t=gocov \
-          -p=github.com/flant/multiwerf/ \
+          -p=github.com/werf/multiwerf/ \
           coverage.out
 
         ./cc-test-reporter upload-coverage

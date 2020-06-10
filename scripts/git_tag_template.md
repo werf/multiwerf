@@ -9,7 +9,7 @@ Installation and usage
 Download from Github assets or from Bintray mirror or curl-bash-it:
 
 ```
-curl -L https://raw.githubusercontent.com/flant/multiwerf/master/get.sh | bash
+curl -L https://raw.githubusercontent.com/werf/multiwerf/master/get.sh | bash
 ```
 
 Download latest `werf` and create a shell alias:
@@ -20,7 +20,7 @@ $ werf version
 v1.0.0-alpha.17
 ```
 
-Go to `werf` [documentation](https://flant.github.io/werf/).
+Go to `werf` [documentation](https://werf.io).
 
 Download from Bintray mirror
 ----------------------------

@@ -11,8 +11,8 @@ OS_ARCHS=(
   "darwin-amd64"
   "windows-amd64"
 )
-BUILD_PACKAGE=github.com/flant/multiwerf/cmd/multiwerf
-VERSION_VAR_NAME=github.com/flant/multiwerf/pkg/app.Version
+BUILD_PACKAGE=github.com/werf/multiwerf/cmd/multiwerf
+VERSION_VAR_NAME=github.com/werf/multiwerf/pkg/app.Version
 
 if [[ -z "${1-}" ]] ; then
   echo "Usage: $0 VERSION"
@@ -38,7 +38,7 @@ for os_arch in "${OS_ARCHS[@]}"; do
   echo "# Building ${BASE_NAME} $VERSION for $os $arch ..."
 
   GOOS=${os} GOARCH=${arch} CGO_ENABLED=0 \
-  go build -ldflags="-s -w -X ${VERSION_VAR_NAME}=${VERSION} -X github.com/flant/multiwerf/pkg/app.OsArch=${os}-${arch}" \
+  go build -ldflags="-s -w -X ${VERSION_VAR_NAME}=${VERSION} -X github.com/werf/multiwerf/pkg/app.OsArch=${os}-${arch}" \
            -o "${outputFile}" "${BUILD_PACKAGE}"
 done
 

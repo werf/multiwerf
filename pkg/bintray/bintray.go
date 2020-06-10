@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/flant/multiwerf/pkg/http"
+	"github.com/werf/multiwerf/pkg/http"
 )
 
 const DefaultBintrayApiUrl = "https://api.bintray.com"

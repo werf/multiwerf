@@ -37,7 +37,7 @@ func ProcessMultiwerfBinPath() string {
 }
 
 func BuildMultiwerfBinPath() string {
-	path, err := gexec.Build("github.com/flant/multiwerf/cmd/multiwerf")
+	path, err := gexec.Build("github.com/werf/multiwerf/cmd/multiwerf")
 	Ω(err).ShouldNot(HaveOccurred())
 	return path
 }

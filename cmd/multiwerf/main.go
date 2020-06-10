@@ -8,8 +8,8 @@ import (
 
 	"gopkg.in/alecthomas/kingpin.v2"
 
-	"github.com/flant/multiwerf/pkg/app"
-	"github.com/flant/multiwerf/pkg/multiwerf"
+	"github.com/werf/multiwerf/pkg/app"
+	"github.com/werf/multiwerf/pkg/multiwerf"
 )
 
 var (

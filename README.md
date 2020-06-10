@@ -1,9 +1,9 @@
-[![Go Report Card](https://goreportcard.com/badge/github.com/flant/multiwerf)](https://goreportcard.com/report/github.com/flant/multiwerf)
-[![Test coverage](https://api.codeclimate.com/v1/badges/361bccdfd0c24a7a817d/test_coverage)](https://codeclimate.com/github/flant/multiwerf/test_coverage)
-[![Download from Github](https://img.shields.io/github/tag-date/flant/multiwerf.svg?logo=github&label=latest)](https://github.com/flant/multiwerf/releases/latest)
+[![Go Report Card](https://goreportcard.com/badge/github.com/werf/multiwerf)](https://goreportcard.com/report/github.com/werf/multiwerf)
+[![Test coverage](https://api.codeclimate.com/v1/badges/fab032c3d6836d768af4/test_coverage)](https://codeclimate.com/github/werf/multiwerf/test_coverage)
+[![Download from Github](https://img.shields.io/github/tag-date/werf/multiwerf.svg?logo=github&label=latest)](https://github.com/werf/multiwerf/releases/latest)
 [![Download from Bintray mirror](https://api.bintray.com/packages/flant/multiwerf/multiwerf/images/download.svg)](https://bintray.com/flant/multiwerf/multiwerf/_latestVersion)
 
-**multiwerf** is a self-updatable [werf](https://github.com/flant/werf) manager with the awareness of release channels, allowed stability levels. multiwerf follows werf [Backward Compatibility Promise](https://github.com/flant/werf#backward-compatibility-promise).
+**multiwerf** is a self-updatable [werf](https://github.com/werf/werf) manager with the awareness of release channels, allowed stability levels. multiwerf follows werf [Backward Compatibility Promise](https://github.com/werf/werf#backward-compatibility-promise).
 
 General usage of multiwerf is managing werf binaries and providing the actual binary for `MAJOR.MINOR` version and `CHANNEL` in the shell session.
 
@@ -26,12 +26,12 @@ echo 'export PATH=$PATH:$HOME/bin' >> ~/.bashrc
 # install multiwerf into ~/bin directory
 mkdir -p ~/bin
 cd ~/bin
-curl -L https://raw.githubusercontent.com/flant/multiwerf/master/get.sh | bash
+curl -L https://raw.githubusercontent.com/werf/multiwerf/master/get.sh | bash
 ```
 
 ### Windows
 
-Choose a release from [GitHub releases](https://github.com/flant/multiwerf/releases) or [bintray mirror](https://bintray.com/flant/multiwerf/multiwerf/_latestVersion) and use one of the following approaches with the chosen binary URL.  
+Choose a release from [GitHub releases](https://github.com/werf/multiwerf/releases) or [bintray mirror](https://bintray.com/flant/multiwerf/multiwerf/_latestVersion) and use one of the following approaches with the chosen binary URL.
 
 #### PowerShell
 
@@ -117,7 +117,7 @@ FOR /F "tokens=*" %g IN ('multiwerf use 1.0 stable --as-file --shell cmdexe') do
 
 - `multiwerf werf-exec <MAJOR.MINOR> [<CHANNEL>] [<WERF_ARGS>...]`: Exec the actual channel werf binary based on the local channel mapping.
 
-The first positional argument is the version in the form of `MAJOR.MINOR`. `CHANNEL` is one of the following channels: alpha, beta, ea, stable, rock-solid. Read more about it in [Backward Compatibility Promise](https://github.com/flant/werf#backward-compatibility-promise) section.
+The first positional argument is the version in the form of `MAJOR.MINOR`. `CHANNEL` is one of the following channels: alpha, beta, ea, stable, rock-solid. Read more about it in [Backward Compatibility Promise](https://github.com/werf/werf#backward-compatibility-promise) section.
 
 multiwerf download werf binary to a directory like `$HOME/.multiwerf/VERSION/`. 
 For example, the werf version `1.0.1-ea.3` for the user `gitlab-runner` will be stored as:

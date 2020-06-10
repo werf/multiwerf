@@ -3,8 +3,8 @@ package multiwerf
 import (
 	"github.com/fatih/color"
 
-	"github.com/flant/multiwerf/pkg/app"
-	"github.com/flant/multiwerf/pkg/output"
+	"github.com/werf/multiwerf/pkg/app"
+	"github.com/werf/multiwerf/pkg/output"
 )
 
 type MsgType string

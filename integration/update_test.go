@@ -10,7 +10,7 @@ import (
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 
-	"github.com/flant/multiwerf/pkg/util_test"
+	"github.com/werf/multiwerf/pkg/util_test"
 )
 
 var _ = Describe("update command", func() {
