@@ -5,9 +5,11 @@ import (
 	"os"
 	"sort"
 
-	"github.com/flant/shluz"
+	"github.com/werf/lockgate"
 
-	"github.com/flant/multiwerf/pkg/output"
+	"github.com/werf/multiwerf/pkg/locker"
+
+	"github.com/werf/multiwerf/pkg/output"
 )
 
 const GCLockName = "gc"
@@ -15,8 +17,7 @@ const GCLockName = "gc"
 func gc(printer output.Printer) error {
 	messages := make(chan ActionMessage, 0)
 	go func() {
-		isAcquired, err := shluz.TryLock(GCLockName, shluz.TryLockOptions{ReadOnly: false})
-		defer func() { _ = shluz.Unlock(GCLockName) }()
+		isAcquired, lockHandle, err := locker.Locker.Acquire(GCLockName, lockgate.AcquireOptions{NonBlocking: true})
 		if err != nil {
 			messages <- ActionMessage{
 				msg:     fmt.Sprintf("GC: Cannot acquire a lock: %v", err),
@@ -26,9 +27,7 @@ func gc(printer output.Printer) error {
 			messages <- ActionMessage{action: "exit"}
 
 			return
-		}
-
-		if !isAcquired {
+		} else if !isAcquired {
 			messages <- ActionMessage{
 				msg:     "GC: Skipped due to performing the operation by another process",
 				msgType: WarnMsgType,
@@ -38,6 +37,8 @@ func gc(printer output.Printer) error {
 
 			return
 		}
+
+		defer func() { _ = locker.Locker.Release(lockHandle) }()
 
 		var actualVersions []string
 		for _, channelMappingFilePath := range []string{localChannelMappingPath(), localOldChannelMappingPath()} {

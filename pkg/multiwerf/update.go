@@ -7,10 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/flant/shluz"
+	"github.com/werf/lockgate"
 
-	"github.com/flant/multiwerf/pkg/app"
-	"github.com/flant/multiwerf/pkg/bintray"
+	"github.com/werf/multiwerf/pkg/app"
+	"github.com/werf/multiwerf/pkg/bintray"
+	"github.com/werf/multiwerf/pkg/locker"
 )
 
 func UpdateChannelVersionBinary(messages chan ActionMessage, group string, channel string, tryRemoteChannelMapping bool) (binInfo *BinaryInfo) {
@@ -36,7 +37,7 @@ func UpdateChannelVersionBinary(messages chan ActionMessage, group string, chann
 		msgType: OkMsgType,
 	}
 
-	_ = shluz.WithLock(actualChannelVersion, shluz.LockOptions{ReadOnly: false}, func() error {
+	_ = lockgate.WithAcquire(locker.Locker, actualChannelVersion, lockgate.AcquireOptions{}, func(_ bool) error {
 		localBinaryInfo, err := verifiedLocalBinaryInfo(messages, actualChannelVersion)
 		if err != nil {
 			messages <- ActionMessage{

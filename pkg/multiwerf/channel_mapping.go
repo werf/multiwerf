@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/flant/multiwerf/pkg/app"
+	"github.com/werf/multiwerf/pkg/app"
 )
 
 const DefaultLocalChannelMappingFilename = "multiwerf.json"

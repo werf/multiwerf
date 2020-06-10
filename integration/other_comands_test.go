@@ -9,8 +9,8 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.com/flant/multiwerf/pkg/multiwerf"
-	"github.com/flant/multiwerf/pkg/util_test"
+	"github.com/werf/multiwerf/pkg/multiwerf"
+	"github.com/werf/multiwerf/pkg/util_test"
 )
 
 var _ = Describe("other commands", func() {

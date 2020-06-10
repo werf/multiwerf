@@ -65,7 +65,7 @@ check_os_arch() {
 
 ${PROGRAM} installation is not currently supported on ${OS}-${ARCH}.
 
-See https://github.com/flant/multiwerf for more information.
+See https://github.com/werf/multiwerf for more information.
 
 EOF
   fi
