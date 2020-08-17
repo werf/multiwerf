@@ -39,7 +39,7 @@ Choose a release from [GitHub releases](https://github.com/werf/multiwerf/releas
 $MULTIWERF_BIN_PATH = "C:\ProgramData\multiwerf\bin"
 mkdir $MULTIWERF_BIN_PATH
 
-Invoke-WebRequest -Uri https://flant.bintray.com/multiwerf/v1.0.16/multiwerf-windows-amd64-v1.0.16.exe -OutFile $MULTIWERF_BIN_PATH\multiwerf.exe
+Invoke-WebRequest -Uri https://flant.bintray.com/multiwerf/v1.3.0/multiwerf-windows-amd64-v1.3.0.exe -OutFile $MULTIWERF_BIN_PATH\multiwerf.exe
 
 [Environment]::SetEnvironmentVariable(
     "Path",
@@ -54,7 +54,7 @@ $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";"
 ```shell
 set MULTIWERF_BIN_PATH="C:\ProgramData\multiwerf\bin"
 mkdir %MULTIWERF_BIN_PATH%
-bitsadmin.exe /transfer "multiwerf" https://flant.bintray.com/multiwerf/v1.0.16/multiwerf-windows-amd64-v1.0.16.exe %MULTIWERF_BIN_PATH%\multiwerf.exe
+bitsadmin.exe /transfer "multiwerf" https://flant.bintray.com/multiwerf/v1.3.0/multiwerf-windows-amd64-v1.3.0.exe %MULTIWERF_BIN_PATH%\multiwerf.exe
 setx /M PATH "%PATH%;%MULTIWERF_BIN_PATH%"
 
 # after that open new cmd.exe session and start using multiwerf
@@ -67,13 +67,13 @@ setx /M PATH "%PATH%;%MULTIWERF_BIN_PATH%"
 #### Add werf alias to the current shell session
 
 ```bash
-. $(multiwerf use 1.0 stable --as-file)
+. $(multiwerf use 1.1 stable --as-file)
 ```
 
 #### Run command on terminal startup
 
 ```bash
-echo '. $(multiwerf use 1.0 stable --as-file)' >> ~/.bashrc
+echo '. $(multiwerf use 1.1 stable --as-file)' >> ~/.bashrc
 ```
 
 #### CI usage tip
@@ -82,7 +82,7 @@ echo '. $(multiwerf use 1.0 stable --as-file)' >> ~/.bashrc
 is exist and executable:
 
 ```shell
-type multiwerf && . $(multiwerf use 1.0 stable --as-file)
+type multiwerf && . $(multiwerf use 1.1 stable --as-file)
 ```
 
 This command will print a message to stderr in case if multiwerf is not found, so diagnostic in CI environment should be simple. 
@@ -94,7 +94,7 @@ This command will print a message to stderr in case if multiwerf is not found, s
 ##### Add werf alias to the current shell session
 
 ```shell
-Invoke-Expression -Command "multiwerf use 1.0 stable --as-file --shell powershell" | Out-String -OutVariable WERF_USE_SCRIPT_PATH
+Invoke-Expression -Command "multiwerf use 1.1 stable --as-file --shell powershell" | Out-String -OutVariable WERF_USE_SCRIPT_PATH
 . $WERF_USE_SCRIPT_PATH.Trim()
 ```
 
@@ -103,7 +103,7 @@ Invoke-Expression -Command "multiwerf use 1.0 stable --as-file --shell powershel
 ##### Add werf alias to the current shell session
 
 ```shell
-FOR /F "tokens=*" %g IN ('multiwerf use 1.0 stable --as-file --shell cmdexe') do (SET WERF_USE_SCRIPT_PATH=%g)
+FOR /F "tokens=*" %g IN ('multiwerf use 1.1 stable --as-file --shell cmdexe') do (SET WERF_USE_SCRIPT_PATH=%g)
 %WERF_USE_SCRIPT_PATH%
 ```
 
