@@ -12,6 +12,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+
+	uuid "github.com/satori/go.uuid"
 )
 
 const DefaultS3Endpoint = "s3.yandexcloud.net"
@@ -27,6 +29,10 @@ func NewS3Client(bucket string) (c S3Client) {
 }
 
 func (c S3Client) GetPackageVersions() ([]string, error) {
+	if debug() {
+		fmt.Printf("-- S3Client.GetPackageVersions\n")
+	}
+
 	awsConfig := c.awsConfig()
 	sess := session.Must(session.NewSession(awsConfig))
 	svc := s3.New(sess, awsConfig)
@@ -60,37 +66,37 @@ func (c S3Client) GetPackageVersions() ([]string, error) {
 }
 
 func (c S3Client) DownloadFiles(version string, dstDir string, files map[string]string) error {
+	if debug() {
+		fmt.Printf("-- S3Client.DownloadFiles version=%q dstDir=%q files=%#v\n", version, dstDir, files)
+	}
+
 	awsConfig := c.awsConfig()
 	sess := session.Must(session.NewSession(awsConfig))
 	downloader := s3manager.NewDownloader(sess)
 
-	var filesToRemove []string
-	shouldBeRemoved := true
-	defer func() {
-		if shouldBeRemoved {
-			for _, file := range filesToRemove {
-				os.RemoveAll(file)
-			}
-		}
-	}()
-
 	for _, fileName := range files {
 		dstFilePath := filepath.Join(dstDir, fileName)
+		tmpFilePath := fmt.Sprintf("%s.%s", dstFilePath, uuid.NewV4().String())
 		key := releaseFileKey(version, fileName)
 
 		err := func() error {
-			dstFile, err := os.Create(dstFilePath)
+			dstFile, err := os.Create(tmpFilePath)
 			if err != nil {
-				return fmt.Errorf("unable to open file %q, %v", dstFilePath, err)
+				return fmt.Errorf("unable to open file %q, %v", tmpFilePath, err)
 			}
 			defer dstFile.Close()
+			defer os.RemoveAll(tmpFilePath)
 
 			_, err = downloader.Download(dstFile, &s3.GetObjectInput{
 				Bucket: aws.String(c.bucket),
 				Key:    aws.String(key),
 			})
 			if err != nil {
-				return fmt.Errorf("downloading file %q failed: %s", key, err)
+				return fmt.Errorf("downloading file %q failed: %s", tmpFilePath, err)
+			}
+
+			if err := os.Rename(tmpFilePath, dstFilePath); err != nil {
+				return fmt.Errorf("unable to rename %q to %q: %s", tmpFilePath, dstFilePath, err)
 			}
 
 			return nil
@@ -99,16 +105,16 @@ func (c S3Client) DownloadFiles(version string, dstDir string, files map[string]
 		if err != nil {
 			return err
 		}
-
-		filesToRemove = append(filesToRemove, dstFilePath)
 	}
-
-	shouldBeRemoved = false
 
 	return nil
 }
 
 func (c S3Client) GetFileContent(version string, fileName string) (string, error) {
+	if debug() {
+		fmt.Printf("-- S3Client.GetFileContent version=%q fileName=%q\n", version, fileName)
+	}
+
 	awsConfig := c.awsConfig()
 	sess := session.Must(session.NewSession(awsConfig))
 	downloader := s3manager.NewDownloader(sess)

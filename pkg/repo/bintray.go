@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	uuid "github.com/satori/go.uuid"
 	"github.com/werf/multiwerf/pkg/http"
 )
 
@@ -39,6 +40,10 @@ func NewBintrayClient(subject string, repo string, pkg string) (bc Repo) {
 }
 
 func (bc *BintrayClient) GetPackageVersions() ([]string, error) {
+	if debug() {
+		fmt.Printf("-- BintrayClient.GetPackageVersions\n")
+	}
+
 	pkgInfo, err := bc.getPackageInfo()
 	if err != nil {
 		return nil, fmt.Errorf("package %s GET info error: %v", bc.Package, err)
@@ -77,38 +82,46 @@ func GetPackageVersions(packageInfo string) (versions []string) {
 }
 
 func (bc *BintrayClient) DownloadFiles(version string, dstDir string, files map[string]string) error {
-	srcUrl := fmt.Sprintf("%s/%s/%s/%s", BintrayDlUrl, bc.Subject, bc.Repo, version)
-
-	var filesToRemove []string
-	shouldBeRemoved := true
-	defer func() {
-		if shouldBeRemoved {
-			for _, file := range filesToRemove {
-				os.RemoveAll(file)
-			}
-		}
-	}()
-
-	for _, fileName := range files {
-		// TODO implement goreleaser lifecycle and verify gpg signing
-		//if fileType == "sig" {
-		//	continue
-		//}
-		fileUrl := fmt.Sprintf("%s/%s", srcUrl, fileName)
-
-		if err := http.DownloadLargeFile(fileUrl, dstDir, fileName); err != nil {
-			return fmt.Errorf("%s download error: %v", fileUrl, err)
-		}
-
-		filesToRemove = append(filesToRemove, filepath.Join(dstDir, fileName))
+	if debug() {
+		fmt.Printf("-- BintrayClient.DownloadFiles version=%q dstDir=%q files=%#v\n", version, dstDir, files)
 	}
 
-	shouldBeRemoved = false
+	srcUrl := fmt.Sprintf("%s/%s/%s/%s", BintrayDlUrl, bc.Subject, bc.Repo, version)
+
+	for _, fileName := range files {
+		dstFilePath := filepath.Join(dstDir, fileName)
+		tmpFileName := fmt.Sprintf("%s.%s", fileName, uuid.NewV4().String())
+		tmpFilePath := filepath.Join(dstDir, tmpFileName)
+
+		fileUrl := fmt.Sprintf("%s/%s", srcUrl, fileName)
+
+		err := func() error {
+			defer os.RemoveAll(tmpFilePath)
+
+			if err := http.DownloadLargeFile(fileUrl, dstDir, fileName); err != nil {
+				return fmt.Errorf("%s download error: %v", fileUrl, err)
+			}
+
+			if err := os.Rename(tmpFilePath, dstFilePath); err != nil {
+				return fmt.Errorf("unable to rename %q to %q: %s", tmpFilePath, dstFilePath, err)
+			}
+
+			return nil
+		}()
+
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
 
 func (bc *BintrayClient) GetFileContent(version string, fileName string) (string, error) {
+	if debug() {
+		fmt.Printf("-- BintrayClient.GetFileContent version=%q fileName=%q\n", version, fileName)
+	}
+
 	srcUrl := fmt.Sprintf("%s/%s/%s/%s", BintrayDlUrl, bc.Subject, bc.Repo, version)
 	fileUrl := fmt.Sprintf("%s/%s", srcUrl, fileName)
 	return http.MakeRestAPICall("GET", fileUrl)
