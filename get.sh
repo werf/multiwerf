@@ -112,8 +112,7 @@ sha256check() {
 PROGRAM="multiwerf"
 OS="$(uname | tr '[:upper:]' '[:lower:]')"
 ARCH="$(uname -m)"
-BINTRAY_LATEST_VERSION_URL="https://bintray.com/flant/multiwerf/multiwerf/_latestVersion"
-BINTRAY_DL_URL_BASE="https://dl.bintray.com/flant/multiwerf"
+DL_URL_BASE="https://storage.yandexcloud.net/multiwerf/targets/releases"
 
 if [ "${ARCH}" = "x86_64" ] ; then
   ARCH="amd64"
@@ -123,18 +122,18 @@ check_os_arch
 
 detect_downloader
 
-VERSION="$(get_latest_version "${BINTRAY_LATEST_VERSION_URL}")"
+VERSION="latest"
 MULTIWERF_BIN_NAME="multiwerf-${OS}-${ARCH}-${VERSION}"
 
-echo "Downloading ${MULTIWERF_BIN_NAME} from bintray..."
-if ! download_file "${BINTRAY_DL_URL_BASE}/${VERSION}/${MULTIWERF_BIN_NAME}" "${MULTIWERF_BIN_NAME}"
+echo "Downloading ${MULTIWERF_BIN_NAME}..."
+if ! download_file "${DL_URL_BASE}/${VERSION}/${MULTIWERF_BIN_NAME}" "${MULTIWERF_BIN_NAME}"
 then
   exit 2
 fi
 
 # check hash
 echo "Checking hash sum..."
-if ! download_file "${BINTRAY_DL_URL_BASE}/${VERSION}/SHA256SUMS" "${PROGRAM}.sha256sums"
+if ! download_file "${DL_URL_BASE}/${VERSION}/SHA256SUMS" "${PROGRAM}.sha256sums"
 then
   exit 2
 fi
