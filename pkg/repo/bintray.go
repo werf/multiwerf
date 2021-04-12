@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/werf/multiwerf/pkg/http"
+
+	uuid "github.com/satori/go.uuid"
 )
 
 const DefaultBintrayApiUrl = "https://api.bintray.com"
@@ -79,14 +80,12 @@ func GetPackageVersions(packageInfo string) (versions []string) {
 func (bc *BintrayClient) DownloadFiles(version string, dstDir string, files map[string]string) error {
 	srcUrl := fmt.Sprintf("%s/%s/%s/%s", BintrayDlUrl, bc.Subject, bc.Repo, version)
 
-	var filesToRemove []string
-	shouldBeRemoved := true
+	tmpDstDir := fmt.Sprintf("%s.tmp.%s", dstDir, uuid.NewV4().String())
+	if err := os.MkdirAll(tmpDstDir, os.ModePerm); err != nil {
+		return fmt.Errorf("error creating tmp dir %q: %s", tmpDstDir, err)
+	}
 	defer func() {
-		if shouldBeRemoved {
-			for _, file := range filesToRemove {
-				os.RemoveAll(file)
-			}
-		}
+		os.RemoveAll(tmpDstDir)
 	}()
 
 	for _, fileName := range files {
@@ -96,14 +95,14 @@ func (bc *BintrayClient) DownloadFiles(version string, dstDir string, files map[
 		//}
 		fileUrl := fmt.Sprintf("%s/%s", srcUrl, fileName)
 
-		if err := http.DownloadLargeFile(fileUrl, dstDir, fileName); err != nil {
+		if err := http.DownloadLargeFile(fileUrl, tmpDstDir, fileName); err != nil {
 			return fmt.Errorf("%s download error: %v", fileUrl, err)
 		}
-
-		filesToRemove = append(filesToRemove, filepath.Join(dstDir, fileName))
 	}
 
-	shouldBeRemoved = false
+	if err := os.Rename(tmpDstDir, dstDir); err != nil {
+		return fmt.Errorf("unable to rename %q to %q: %s", tmpDstDir, dstDir, err)
+	}
 
 	return nil
 }
