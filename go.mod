@@ -14,7 +14,6 @@ require (
 	github.com/onsi/gomega v1.8.1
 	github.com/otiai10/copy v1.0.2
 	github.com/prashantv/gostub v1.0.0
-	github.com/satori/go.uuid v1.2.0 // indirect
 	github.com/stretchr/testify v1.4.0
 	github.com/werf/lockgate v0.0.0-20200610124531-3e56c66ed101
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6

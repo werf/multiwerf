@@ -12,8 +12,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-
-	uuid "github.com/satori/go.uuid"
 )
 
 const DefaultS3Endpoint = "s3.yandexcloud.net"
@@ -66,16 +64,18 @@ func (c S3Client) DownloadFiles(version string, dstDir string, files map[string]
 	sess := session.Must(session.NewSession(awsConfig))
 	downloader := s3manager.NewDownloader(sess)
 
-	tmpDstDir := fmt.Sprintf("%s.tmp.%s", dstDir, uuid.NewV4().String())
-	if err := os.MkdirAll(tmpDstDir, os.ModePerm); err != nil {
-		return fmt.Errorf("error creating tmp dir %q: %s", tmpDstDir, err)
-	}
+	var filesToRemove []string
+	shouldBeRemoved := true
 	defer func() {
-		os.RemoveAll(tmpDstDir)
+		if shouldBeRemoved {
+			for _, file := range filesToRemove {
+				os.RemoveAll(file)
+			}
+		}
 	}()
 
 	for _, fileName := range files {
-		dstFilePath := filepath.Join(tmpDstDir, fileName)
+		dstFilePath := filepath.Join(dstDir, fileName)
 		key := releaseFileKey(version, fileName)
 
 		err := func() error {
@@ -96,11 +96,11 @@ func (c S3Client) DownloadFiles(version string, dstDir string, files map[string]
 		if err != nil {
 			return err
 		}
+
+		filesToRemove = append(filesToRemove, dstFilePath)
 	}
 
-	if err := os.Rename(tmpDstDir, dstDir); err != nil {
-		return fmt.Errorf("unable to rename %q to %q: %s", tmpDstDir, dstDir, err)
-	}
+	shouldBeRemoved = false
 
 	return nil
 }
