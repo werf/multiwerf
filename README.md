@@ -1,7 +1,6 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/werf/multiwerf)](https://goreportcard.com/report/github.com/werf/multiwerf)
 [![Test coverage](https://api.codeclimate.com/v1/badges/fab032c3d6836d768af4/test_coverage)](https://codeclimate.com/github/werf/multiwerf/test_coverage)
 [![Download from Github](https://img.shields.io/github/tag-date/werf/multiwerf.svg?logo=github&label=latest)](https://github.com/werf/multiwerf/releases/latest)
-[![Download from Bintray mirror](https://api.bintray.com/packages/flant/multiwerf/multiwerf/images/download.svg)](https://bintray.com/flant/multiwerf/multiwerf/_latestVersion)
 
 **multiwerf** is a self-updatable [werf](https://github.com/werf/werf) manager with the awareness of release channels, allowed stability levels. multiwerf follows werf [Backward Compatibility Promise](https://github.com/werf/werf#backward-compatibility-promise).
 
