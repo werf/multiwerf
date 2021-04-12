@@ -1,4 +1,4 @@
-package bintray
+package repo
 
 import (
 	"encoding/json"
@@ -17,44 +17,40 @@ var (
 	BintrayDlUrl  string
 )
 
-type BintrayEvent struct {
-	Msg   string
-	Err   error
-	State string
-}
-
-type BintrayClient interface {
-	GetPackageInfo() (string, error)
-	DownloadFiles(version string, dstDir string, files map[string]string) error
-	GetFileContent(version string, fileName string) (string, error)
-	EventCh() chan BintrayEvent
-}
-
-type MainBintrayClient struct {
+type BintrayClient struct {
 	Subject string
 	Repo    string
 	Package string
-	eventCh chan BintrayEvent
 }
 
-func NewBintrayClient(subject string, repo string, pkg string) (bc BintrayClient) {
+func NewBintrayClient(subject string, repo string, pkg string) (bc Repo) {
 	if BintrayApiUrl == "" {
 		BintrayApiUrl = DefaultBintrayApiUrl
 	}
 	if BintrayDlUrl == "" {
 		BintrayDlUrl = DefaultBintrayDlUrl
 	}
-	bc = &MainBintrayClient{
+	bc = &BintrayClient{
 		Subject: subject,
 		Repo:    repo,
 		Package: pkg,
-		eventCh: make(chan BintrayEvent, 1),
 	}
 	return bc
 }
 
-// GetPackageInfo returns json response from packages API
-func (bc *MainBintrayClient) GetPackageInfo() (string, error) {
+func (bc *BintrayClient) GetPackageVersions() ([]string, error) {
+	pkgInfo, err := bc.getPackageInfo()
+	if err != nil {
+		return nil, fmt.Errorf("package %s GET info error: %v", bc.Package, err)
+	}
+
+	versions := GetPackageVersions(pkgInfo)
+
+	return versions, nil
+}
+
+// getPackageInfo returns json response from packages API
+func (bc *BintrayClient) getPackageInfo() (string, error) {
 	apiUrl := fmt.Sprintf("%s/packages/%s/%s/%s", BintrayApiUrl, bc.Subject, bc.Repo, bc.Package)
 	response, err := http.MakeRestAPICall("GET", apiUrl)
 	if err != nil {
@@ -80,7 +76,7 @@ func GetPackageVersions(packageInfo string) (versions []string) {
 	return versions
 }
 
-func (bc *MainBintrayClient) DownloadFiles(version string, dstDir string, files map[string]string) error {
+func (bc *BintrayClient) DownloadFiles(version string, dstDir string, files map[string]string) error {
 	srcUrl := fmt.Sprintf("%s/%s/%s/%s", BintrayDlUrl, bc.Subject, bc.Repo, version)
 
 	var filesToRemove []string
@@ -112,12 +108,12 @@ func (bc *MainBintrayClient) DownloadFiles(version string, dstDir string, files 
 	return nil
 }
 
-func (bc *MainBintrayClient) GetFileContent(version string, fileName string) (string, error) {
+func (bc *BintrayClient) GetFileContent(version string, fileName string) (string, error) {
 	srcUrl := fmt.Sprintf("%s/%s/%s/%s", BintrayDlUrl, bc.Subject, bc.Repo, version)
 	fileUrl := fmt.Sprintf("%s/%s", srcUrl, fileName)
 	return http.MakeRestAPICall("GET", fileUrl)
 }
 
-func (bc *MainBintrayClient) EventCh() chan BintrayEvent {
-	return bc.eventCh
+func (bc *BintrayClient) String() string {
+	return "bintray"
 }

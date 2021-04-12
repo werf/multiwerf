@@ -26,6 +26,9 @@ var BintrayPackage = "werf"
 var OsArch = strings.Join([]string{runtime.GOOS, runtime.GOARCH}, "-")
 var StorageDir = "~/.multiwerf"
 
+var SelfPackageName = "multiwerf"
+var AppPackageName = "werf"
+
 var ChannelMappingUrl = "https://raw.githubusercontent.com/werf/werf/multiwerf/multiwerf.json"
 var ChannelMappingPath string
 

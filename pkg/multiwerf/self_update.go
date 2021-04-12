@@ -12,9 +12,9 @@ import (
 	"github.com/werf/lockgate"
 
 	"github.com/werf/multiwerf/pkg/app"
-	"github.com/werf/multiwerf/pkg/bintray"
 	"github.com/werf/multiwerf/pkg/locker"
 	"github.com/werf/multiwerf/pkg/output"
+	"github.com/werf/multiwerf/pkg/repo"
 	"github.com/werf/multiwerf/pkg/util"
 )
 
@@ -161,119 +161,153 @@ func SelfUpdate(messages chan ActionMessage) string {
 	selfDir := filepath.Dir(selfPath)
 	selfName := filepath.Base(selfPath)
 
-	var repoName string
-	if app.Experimental {
-		repoName = app.SelfExperimentalBintrayRepo
-	} else {
-		repoName = app.SelfBintrayRepo
+	repoClients := []repo.Repo{
+		NewSelfS3Client(),
+		NewSelfBtClient(),
 	}
 
-	btClient := bintray.NewBintrayClient(app.SelfBintraySubject, repoName, app.SelfBintrayPackage)
+	var files, downloadFiles map[string]string
+	var latestVersion string
+	for ind, repoClient := range repoClients {
+		shouldIgnoreError := len(repoClients) > ind+1
 
-	pkgInfo, err := btClient.GetPackageInfo()
-	if err != nil {
-		messages <- ActionMessage{
-			comment: "self update error",
-			msg:     fmt.Sprintf("Self-update: Package %s GET info error: %v", app.SelfBintrayPackage, err),
-			msgType: FailMsgType,
-			stage:   "self-update"}
-		return ""
-	}
+		sendMessageFunc := func(msg string) {
+			msg = fmt.Sprintf("[%s] %s", repoClient.String(), msg)
+			var msgType MsgType
+			if shouldIgnoreError {
+				msgType = WarnMsgType
+			} else {
+				msgType = FailMsgType
+			}
 
-	versions := bintray.GetPackageVersions(pkgInfo)
-	if len(versions) == 0 {
-		messages <- ActionMessage{
-			comment: "self update error",
-			msg:     "Self-update: no versions found",
-			msgType: FailMsgType,
-			stage:   "self-update"}
-		return ""
-	} else {
-		messages <- ActionMessage{
-			msg:   fmt.Sprintf("Self-update: Discover %d versions: %+v", len(versions), versions),
-			debug: true}
-	}
+			messages <- ActionMessage{
+				msg:     msg,
+				msgType: msgType,
+				stage:   "self-update",
+			}
+		}
 
-	// Calc latest version for channel
-	latestVersion, err := HighestSemverVersion(versions)
-	if err != nil {
-		messages <- ActionMessage{
-			comment: "self update error",
-			msg:     fmt.Sprintf("Self-update: Cannot choose the latest version: %v", err),
-			msgType: FailMsgType,
-			stage:   "self-update"}
-		return ""
-	}
-	if latestVersion == "" {
-		messages <- ActionMessage{
-			comment: "self update error",
-			msg:     "Self-update: The latest version not found",
-			msgType: FailMsgType,
-			stage:   "self-update"}
-		return ""
-	}
+		versions, err := repoClient.GetPackageVersions()
+		if err != nil {
+			msg := fmt.Sprintf("Self-update: Package %s GET info error: %v", app.SelfPackageName, err)
+			sendMessageFunc(msg)
+			if shouldIgnoreError {
+				continue
+			}
 
-	if latestVersion == app.Version {
+			return ""
+		}
+
+		if len(versions) == 0 {
+			msg := "Self-update: no versions found"
+			sendMessageFunc(msg)
+			if shouldIgnoreError {
+				continue
+			}
+
+			return ""
+		} else {
+			messages <- ActionMessage{
+				msg:   fmt.Sprintf("Self-update: Discover %d versions: %+v", len(versions), versions),
+				debug: true}
+		}
+
+		// Calc latest version for channel
+		latestVersion, err = HighestSemverVersion(versions)
+		if err != nil {
+			msg := fmt.Sprintf("Self-update: Cannot choose the latest version: %v", err)
+			sendMessageFunc(msg)
+			if shouldIgnoreError {
+				continue
+			}
+
+			return ""
+		}
+
+		if latestVersion == "" {
+			msg := "Self-update: The latest version not found"
+			sendMessageFunc(msg)
+			if shouldIgnoreError {
+				continue
+			}
+
+			messages <- ActionMessage{
+				comment: "self update error",
+				msg:     "Self-update: The latest version not found",
+				msgType: FailMsgType,
+				stage:   "self-update"}
+			return ""
+		}
+
+		if latestVersion == app.Version {
+			messages <- ActionMessage{
+				msg:     "Self-update: Already the latest version",
+				msgType: OkMsgType,
+				stage:   "self-update"}
+			return ""
+		}
+
 		messages <- ActionMessage{
-			msg:     "Self-update: Already the latest version",
+			msg:     fmt.Sprintf("Self-update: Detect version %s as the latest", latestVersion),
 			msgType: OkMsgType,
 			stage:   "self-update"}
-		return ""
-	}
 
-	messages <- ActionMessage{
-		msg:     fmt.Sprintf("Self-update: Detect version %s as the latest", latestVersion),
-		msgType: OkMsgType,
-		stage:   "self-update"}
-
-	files := ReleaseFiles(app.SelfBintrayPackage, latestVersion, app.OsArch)
-	downloadFiles := map[string]string{
-		"program": files["program"],
-	}
-	messages <- ActionMessage{
-		msg:   fmt.Sprintf("dstPath is %s, downloadFiles: %+v", selfDir, downloadFiles),
-		debug: true}
-
-	messages <- ActionMessage{msg: "Self-update: Downloading ...", debug: true}
-	err = btClient.DownloadFiles(latestVersion, selfDir, downloadFiles)
-	if err != nil {
+		files = ReleaseFiles(app.SelfPackageName, latestVersion, app.OsArch)
+		downloadFiles = map[string]string{
+			"program": files["program"],
+		}
 		messages <- ActionMessage{
-			comment: "self update error",
-			msg:     fmt.Sprintf("Self-update: Download release error: %v", err),
-			msgType: FailMsgType,
-			stage:   "self-update"}
-		return ""
-	}
+			msg:   fmt.Sprintf("dstPath is %q, downloadFiles: %+v", selfDir, downloadFiles),
+			debug: true}
 
-	// TODO add hash verification!
-	sha256sums, err := btClient.GetFileContent(latestVersion, files["hash"])
-	if err != nil {
-		messages <- ActionMessage{
-			comment: "self update error",
-			msg:     fmt.Sprintf("Self-update: Download %s error: %v", files["hash"], err),
-			msgType: FailMsgType,
-			stage:   "self-update"}
-		return ""
-	}
+		messages <- ActionMessage{msg: "Self-update: Downloading ...", debug: true}
 
-	// check hash of local binary
-	hashes := LoadHashMap(strings.NewReader(sha256sums))
-	match, err := VerifyReleaseFileHashFromHashes(messages, selfDir, hashes, files["program"])
-	if err != nil {
-		messages <- ActionMessage{
-			comment: "self update error",
-			msg:     fmt.Sprintf("Self-update: %s hash verification error: %v", files["program"], err),
-			msgType: FailMsgType,
-			stage:   "self-update"}
-		return ""
-	}
-	if !match {
-		messages <- ActionMessage{
-			comment: "self update error",
-			msg:     fmt.Sprintf("Self-update: %s hash is not verified", files["program"]),
-			msgType: FailMsgType,
-			stage:   "self-update"}
-		return ""
+		err = repoClient.DownloadFiles(latestVersion, selfDir, downloadFiles)
+		if err != nil {
+			msg := fmt.Sprintf("Self-update: Download release error: %v", err)
+			sendMessageFunc(msg)
+			if shouldIgnoreError {
+				continue
+			}
+
+			return ""
+		}
+
+		// TODO add hash verification!
+		sha256sums, err := repoClient.GetFileContent(latestVersion, files["hash"])
+		if err != nil {
+			msg := fmt.Sprintf("Self-update: Download %s error: %v", files["hash"], err)
+			sendMessageFunc(msg)
+			if shouldIgnoreError {
+				continue
+			}
+
+			return ""
+		}
+
+		// check hash of local binary
+		hashes := LoadHashMap(strings.NewReader(sha256sums))
+		match, err := VerifyReleaseFileHashFromHashes(messages, selfDir, hashes, files["program"])
+		if err != nil {
+			msg := fmt.Sprintf("Self-update: %s hash verification error: %v", files["program"], err)
+			sendMessageFunc(msg)
+			if shouldIgnoreError {
+				continue
+			}
+
+			return ""
+		}
+		if !match {
+			msg := fmt.Sprintf("Self-update: %s hash is not verified", files["program"])
+			sendMessageFunc(msg)
+			if shouldIgnoreError {
+				continue
+			}
+
+			return ""
+		}
+
+		break
 	}
 
 	// chmod +x for files["program"]
@@ -301,6 +335,7 @@ func SelfUpdate(messages chan ActionMessage) string {
 		msg:     fmt.Sprintf("Self-update: Successfully updated to %s", latestVersion),
 		msgType: OkMsgType,
 		stage:   "self-update"}
+
 	return selfPath
 }
 
