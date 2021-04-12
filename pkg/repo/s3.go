@@ -29,6 +29,10 @@ func NewS3Client(bucket string) (c S3Client) {
 }
 
 func (c S3Client) GetPackageVersions() ([]string, error) {
+	if debug() {
+		fmt.Printf("-- S3Client.GetPackageVersions\n")
+	}
+
 	awsConfig := c.awsConfig()
 	sess := session.Must(session.NewSession(awsConfig))
 	svc := s3.New(sess, awsConfig)
@@ -62,35 +66,40 @@ func (c S3Client) GetPackageVersions() ([]string, error) {
 }
 
 func (c S3Client) DownloadFiles(version string, dstDir string, files map[string]string) error {
+	if debug() {
+		fmt.Printf("-- S3Client.DownloadFiles version=%q dstDir=%q files=%#v\n", version, dstDir, files)
+	}
+
 	awsConfig := c.awsConfig()
 	sess := session.Must(session.NewSession(awsConfig))
 	downloader := s3manager.NewDownloader(sess)
 
-	tmpDstDir := fmt.Sprintf("%s.tmp.%s", dstDir, uuid.NewV4().String())
-	if err := os.MkdirAll(tmpDstDir, os.ModePerm); err != nil {
-		return fmt.Errorf("error creating tmp dir %q: %s", tmpDstDir, err)
-	}
-	defer func() {
-		os.RemoveAll(tmpDstDir)
-	}()
-
 	for _, fileName := range files {
-		dstFilePath := filepath.Join(tmpDstDir, fileName)
+		dstFilePath := filepath.Join(dstDir, fileName)
+		tmpFilePath := fmt.Sprintf("%s.%s", dstFilePath, uuid.NewV4().String())
 		key := releaseFileKey(version, fileName)
 
 		err := func() error {
-			dstFile, err := os.Create(dstFilePath)
+			dstFile, err := os.Create(tmpFilePath)
 			if err != nil {
-				return fmt.Errorf("unable to open file %q, %v", dstFilePath, err)
+				return fmt.Errorf("unable to open file %q, %v", tmpFilePath, err)
 			}
 			defer dstFile.Close()
+			defer os.RemoveAll(tmpFilePath)
 
 			_, err = downloader.Download(dstFile, &s3.GetObjectInput{
 				Bucket: aws.String(c.bucket),
 				Key:    aws.String(key),
 			})
+			if err != nil {
+				return fmt.Errorf("downloading file %q failed: %s", tmpFilePath, err)
+			}
 
-			return fmt.Errorf("downloading file %q failed: %s", key, err)
+			if err := os.Rename(tmpFilePath, dstFilePath); err != nil {
+				return fmt.Errorf("unable to rename %q to %q: %s", tmpFilePath, dstFilePath, err)
+			}
+
+			return nil
 		}()
 
 		if err != nil {
@@ -98,14 +107,14 @@ func (c S3Client) DownloadFiles(version string, dstDir string, files map[string]
 		}
 	}
 
-	if err := os.Rename(tmpDstDir, dstDir); err != nil {
-		return fmt.Errorf("unable to rename %q to %q: %s", tmpDstDir, dstDir, err)
-	}
-
 	return nil
 }
 
 func (c S3Client) GetFileContent(version string, fileName string) (string, error) {
+	if debug() {
+		fmt.Printf("-- S3Client.GetFileContent version=%q fileName=%q\n", version, fileName)
+	}
+
 	awsConfig := c.awsConfig()
 	sess := session.Must(session.NewSession(awsConfig))
 	downloader := s3manager.NewDownloader(sess)
