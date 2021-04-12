@@ -38,7 +38,7 @@ jobs:
       run: |
         export MULTIWERF_TEST_COVERAGE_DIR=$GITHUB_WORKSPACE/tests_coverage/${{ matrix.os }}
         mkdir -p $MULTIWERF_TEST_COVERAGE_DIR
-        echo ::set-env name=MULTIWERF_TEST_COVERAGE_DIR::$MULTIWERF_TEST_COVERAGE_DIR
+        echo "MULTIWERF_TEST_COVERAGE_DIR=$MULTIWERF_TEST_COVERAGE_DIR" >> $GITHUB_ENV
 
         ./scripts/tests/multiwerf_with_coverage.sh
       shell: bash
@@ -92,7 +92,7 @@ jobs:
     - name: Build multiwerf
       run: |
         export GOBIN=$GITHUB_WORKSPACE
-        echo "::add-path::$GOBIN"
+        echo "$GOBIN" >> $GITHUB_PATH
         ./go-build.sh
       shell: bash
 
@@ -100,7 +100,7 @@ jobs:
       run: |
         export MULTIWERF_STORAGE_DIR=$PWD/.multiwerf
         mkdir $MULTIWERF_STORAGE_DIR
-        echo "::set-env name=MULTIWERF_STORAGE_DIR::$MULTIWERF_STORAGE_DIR"
+        echo "MULTIWERF_STORAGE_DIR=$MULTIWERF_STORAGE_DIR" >> $GITHUB_ENV
       shell: bash
       if: matrix.os == 'windows-latest'
 
@@ -248,7 +248,7 @@ jobs:
         go build github.com/wadey/gocovmerge
         chmod +x ./gocovmerge
 
-        echo ::set-env name=MULTIWERF_TEST_COVERAGE_DIR::tests_coverage
+        echo "MULTIWERF_TEST_COVERAGE_DIR=tests_coverage" >> $GITHUB_ENV
 
     # FIXME: determine problems with coverage records and remove seds
     - name: Prepare coverage file
