@@ -89,8 +89,11 @@ func (c S3Client) DownloadFiles(version string, dstDir string, files map[string]
 				Bucket: aws.String(c.bucket),
 				Key:    aws.String(key),
 			})
+			if err != nil {
+				return fmt.Errorf("downloading file %q failed: %s", key, err)
+			}
 
-			return fmt.Errorf("downloading file %q failed: %s", key, err)
+			return nil
 		}()
 
 		if err != nil {
