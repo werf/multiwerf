@@ -20,7 +20,7 @@ type BinaryInfo struct {
 // Hash of binary is verified with SHA256SUMS files.
 func verifiedLocalBinaryInfo(messages chan ActionMessage, version string) (*BinaryInfo, error) {
 	dstPath := localVersionDirPath(version)
-	files := ReleaseFiles(app.BintrayPackage, version, app.OsArch)
+	files := ReleaseFiles(app.AppPackageName, version, app.OsArch)
 	messages <- ActionMessage{
 		msg:   fmt.Sprintf("dstPath is %s, files: %+v", dstPath, files),
 		debug: true,
@@ -58,7 +58,7 @@ func verifiedLocalBinaryInfo(messages chan ActionMessage, version string) (*Bina
 // stored in StorageDir. Empty object is returned if no binary found.
 func localBinaryInfo(messages chan ActionMessage, version string) (*BinaryInfo, error) {
 	dstPath := localVersionDirPath(version)
-	files := ReleaseFiles(app.BintrayPackage, version, app.OsArch)
+	files := ReleaseFiles(app.AppPackageName, version, app.OsArch)
 	messages <- ActionMessage{
 		msg:   fmt.Sprintf("dstPath is %s, files: %+v", dstPath, files),
 		debug: true,

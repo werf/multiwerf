@@ -10,8 +10,8 @@ import (
 	"github.com/werf/lockgate"
 
 	"github.com/werf/multiwerf/pkg/app"
-	"github.com/werf/multiwerf/pkg/bintray"
 	"github.com/werf/multiwerf/pkg/locker"
+	"github.com/werf/multiwerf/pkg/repo"
 )
 
 func UpdateChannelVersionBinary(messages chan ActionMessage, group string, channel string, tryRemoteChannelMapping bool) (binInfo *BinaryInfo) {
@@ -75,11 +75,9 @@ func UpdateChannelVersionBinary(messages chan ActionMessage, group string, chann
 			}
 		}
 
-		bintrayClient := bintray.NewBintrayClient(app.BintraySubject, app.BintrayRepo, app.BintrayPackage)
-
-		downloadedBinaryInfo, err := downloadAndVerifyReleaseFiles(messages, actualChannelVersion, bintrayClient)
+		downloadedBinaryInfo, err := downloadAndVerifyReleaseFiles(messages, actualChannelVersion)
 		if err != nil {
-			messages <- ActionMessage{err: fmt.Errorf("%s %s/%s: %v", app.BintrayPackage, group, channel, err)}
+			messages <- ActionMessage{err: fmt.Errorf("%s %s/%s: %v", app.AppPackageName, group, channel, err)}
 			return nil
 		}
 
@@ -163,14 +161,14 @@ func UseChannelVersionBinary(messages chan ActionMessage, group string, channel 
 
 // downloadAndVerifyReleaseFiles downloads release files and verifies them.
 // If files are good then creates version directory and moves files there
-func downloadAndVerifyReleaseFiles(messages chan ActionMessage, version string, btClient bintray.BintrayClient) (binInfo *BinaryInfo, err error) {
+func downloadAndVerifyReleaseFiles(messages chan ActionMessage, version string) (binInfo *BinaryInfo, err error) {
 	tmpDir, err := ioutil.TempDir(TmpDir, version+"-")
 	if err != nil {
 		return nil, fmt.Errorf("create tmp dir failed: %s", err)
 	}
 
 	dstPath := localVersionDirPath(version)
-	files := ReleaseFiles(app.BintrayPackage, version, app.OsArch)
+	files := ReleaseFiles(app.AppPackageName, version, app.OsArch)
 
 	messages <- ActionMessage{
 		msg:     fmt.Sprintf("Downloading the version %s ...", version),
@@ -184,8 +182,30 @@ func downloadAndVerifyReleaseFiles(messages chan ActionMessage, version string, 
 		}
 	}()
 
-	if err = btClient.DownloadFiles(version, tmpDir, files); err != nil {
-		return nil, err
+	repoClients := []repo.Repo{
+		NewAppS3Client(),
+		NewAppBtClient(),
+	}
+
+	for ind, repoClient := range repoClients {
+		shouldSkipError := len(repoClients) > ind+1
+
+		err = repoClient.DownloadFiles(version, tmpDir, files)
+		if err != nil {
+			if shouldSkipError {
+				messages <- ActionMessage{
+					msg:     fmt.Sprintf("[%s] Downloading the version %s failed", repoClient.String(), version),
+					msgType: WarnMsgType,
+					stage:   "update",
+				}
+
+				continue
+			}
+
+			return nil, err
+		}
+
+		break
 	}
 
 	if err = os.Chmod(filepath.Join(tmpDir, files["program"]), 0755); err != nil {
