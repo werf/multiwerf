@@ -54,3 +54,25 @@ cat <<EOF > "${BUILD_DIR}/info.txt"
 Build date: ${datetime}
 Commit: ${commit}
 EOF
+
+LATEST_DIR="${RELEASE_BUILD_DIR:?}/latest"
+
+rm -rf "${LATEST_DIR}"
+cp -r "${BUILD_DIR}" "${LATEST_DIR}"
+
+for os_arch in "${OS_ARCHS[@]}"; do
+  os=${os_arch%-*}
+  arch=${os_arch#*-}
+  outputFile="$LATEST_DIR/${BASE_NAME}-${os}-${arch}-${VERSION}"
+  outputFileLatest="$LATEST_DIR/${BASE_NAME}-${os}-${arch}-latest"
+  if [[ "$os" == "windows" ]] ; then
+    outputFile="$outputFile.exe"
+  fi
+
+  mv "${outputFile}" "${outputFileLatest}"
+done
+
+(
+cd "${LATEST_DIR}"
+sha256sum "${BASE_NAME}"-* > SHA256SUMS
+)
