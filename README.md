@@ -30,7 +30,7 @@ curl -L https://raw.githubusercontent.com/werf/multiwerf/master/get.sh | bash
 
 ### Windows
 
-Choose a release from [GitHub releases](https://github.com/werf/multiwerf/releases) or [bintray mirror](https://bintray.com/flant/multiwerf/multiwerf/_latestVersion) and use one of the following approaches with the chosen binary URL.
+Choose a release from [GitHub releases](https://github.com/werf/multiwerf/releases) and use one of the following approaches with the chosen binary URL.
 
 #### PowerShell
 
@@ -38,7 +38,7 @@ Choose a release from [GitHub releases](https://github.com/werf/multiwerf/releas
 $MULTIWERF_BIN_PATH = "C:\ProgramData\multiwerf\bin"
 mkdir $MULTIWERF_BIN_PATH
 
-Invoke-WebRequest -Uri https://flant.bintray.com/multiwerf/v1.3.0/multiwerf-windows-amd64-v1.3.0.exe -OutFile $MULTIWERF_BIN_PATH\multiwerf.exe
+Invoke-WebRequest -Uri https://storage.yandexcloud.net/multiwerf/targets/releases/v1.4.7/multiwerf-windows-amd64-v1.4.7.exe -OutFile $MULTIWERF_BIN_PATH\multiwerf.exe
 
 [Environment]::SetEnvironmentVariable(
     "Path",
@@ -53,7 +53,7 @@ $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";"
 ```shell
 set MULTIWERF_BIN_PATH="C:\ProgramData\multiwerf\bin"
 mkdir %MULTIWERF_BIN_PATH%
-bitsadmin.exe /transfer "multiwerf" https://flant.bintray.com/multiwerf/v1.3.0/multiwerf-windows-amd64-v1.3.0.exe %MULTIWERF_BIN_PATH%\multiwerf.exe
+bitsadmin.exe /transfer "multiwerf" https://storage.yandexcloud.net/multiwerf/targets/releases/v1.4.7/multiwerf-windows-amd64-v1.4.7.exe %MULTIWERF_BIN_PATH%\multiwerf.exe
 setx /M PATH "%PATH%;%MULTIWERF_BIN_PATH%"
 
 # after that open new cmd.exe session and start using multiwerf
@@ -135,21 +135,11 @@ For example, the werf version `1.0.1-ea.3` for the user `gitlab-runner` will be 
 
 ## Self-update
 
-Before downloading the actual channel werf binary multiwerf performs self-update process. If the new version is available in `bintray.com/flant/multiwerf/multiwerf` multiwerf downloads it and starts the new process with the same environment and arguments.
+Before downloading the actual channel werf binary multiwerf performs self-update process. If the new version is available multiwerf downloads it and starts the new process with the same environment and arguments.
 
 `--self-update=no` flag and `MULTIWERF_SELF_UPDATE=no` environment variable are available to turn off self-updates.
 
 Self-update is disabled if `multiwerf` binary is not owned by user that runs it and if the binary file is not writable by owner. 
-
-### Experimental mode
-
-To allow updates of multiwerf to experimental versions specify `--experimental` flag. When experimental mode is enabled multiwerf checks for self-updates without delays.
-
-When experimental mode is specified for the first time multiwerf will update to the latest avaiable version in the separate experimental repo: [https://bintray.com/flant/multiwerf-experimental/multiwerf](https://bintray.com/flant/multiwerf-experimental/multiwerf).
-
-When experimental mode was specified for the multiwerf command previously and now is not specified then multiwerf will downgrade to the latest available stable version in the main repo: [https://bintray.com/flant/multiwerf/multiwerf](https://bintray.com/flant/multiwerf/multiwerf).
-
-Experimental versions
 
 ## License
 
