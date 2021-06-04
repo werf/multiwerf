@@ -84,8 +84,12 @@ func (c S3Client) DownloadFiles(version string, dstDir string, files map[string]
 			if err != nil {
 				return fmt.Errorf("unable to open file %q, %v", tmpFilePath, err)
 			}
-			defer dstFile.Close()
-			defer os.RemoveAll(tmpFilePath)
+			defer func() {
+				if err != nil {
+					_ = dstFile.Close()
+					_ = os.RemoveAll(tmpFilePath)
+				}
+			}()
 
 			_, err = downloader.Download(dstFile, &s3.GetObjectInput{
 				Bucket: aws.String(c.bucket),
@@ -95,13 +99,16 @@ func (c S3Client) DownloadFiles(version string, dstDir string, files map[string]
 				return fmt.Errorf("downloading file %q failed: %s", tmpFilePath, err)
 			}
 
-			if err := os.Rename(tmpFilePath, dstFilePath); err != nil {
+			if err = dstFile.Close(); err != nil {
+				return fmt.Errorf("unable to close file %q: %s", tmpFilePath, err)
+			}
+
+			if err = os.Rename(tmpFilePath, dstFilePath); err != nil {
 				return fmt.Errorf("unable to rename %q to %q: %s", tmpFilePath, dstFilePath, err)
 			}
 
 			return nil
 		}()
-
 		if err != nil {
 			return err
 		}
