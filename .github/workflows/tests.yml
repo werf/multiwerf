@@ -13,6 +13,7 @@ env:
 jobs:
 
   tests:
+    if: "false" # Ignore step because there is no test data previously stored in bintray
     name: Go Test (with coverage)
     strategy:
       fail-fast: false
