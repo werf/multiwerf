@@ -170,11 +170,6 @@ func downloadAndVerifyReleaseFiles(messages chan ActionMessage, version string) 
 	dstPath := localVersionDirPath(version)
 	files := ReleaseFiles(app.AppPackageName, version, app.OsArch)
 
-	messages <- ActionMessage{
-		msg:     fmt.Sprintf("Downloading the version %s ...", version),
-		msgType: OkMsgType,
-	}
-
 	shouldBeRemoved := true
 	defer func() {
 		if shouldBeRemoved {
@@ -188,13 +183,18 @@ func downloadAndVerifyReleaseFiles(messages chan ActionMessage, version string) 
 	}
 
 	for ind, repoClient := range repoClients {
+		messages <- ActionMessage{
+			msg:     fmt.Sprintf("[%s] Downloading the version %s ...", repoClient.String(), version),
+			msgType: OkMsgType,
+		}
+
 		shouldSkipError := len(repoClients) > ind+1
 
 		err = repoClient.DownloadFiles(version, tmpDir, files)
 		if err != nil {
 			if shouldSkipError {
 				messages <- ActionMessage{
-					msg:     fmt.Sprintf("[%s] Downloading the version %s failed", repoClient.String(), version),
+					msg:     fmt.Sprintf("[%s] Downloading the version %s failed: %s", repoClient.String(), version, err.Error()),
 					msgType: WarnMsgType,
 					stage:   "update",
 				}
