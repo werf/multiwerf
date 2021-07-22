@@ -8,7 +8,9 @@ done
 # build parameters
 OS_ARCHS=(
   "linux-amd64"
+  "linux-arm64"
   "darwin-amd64"
+  "darwin-arm64"
   "windows-amd64"
 )
 BUILD_PACKAGE=github.com/werf/multiwerf/cmd/multiwerf
