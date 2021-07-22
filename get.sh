@@ -58,7 +58,7 @@ get_location_header() {
 }
 
 check_os_arch() {
-  supported="linux-amd64 darwin-amd64"
+  supported="linux-amd64 linux-arm64 darwin-amd64 darwin-arm64"
 
   if ! echo "${supported}" | tr ' ' '\n' | grep -q "${OS}-${ARCH}"; then
     cat <<EOF
