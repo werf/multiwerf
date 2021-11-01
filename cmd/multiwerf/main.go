@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -13,8 +14,8 @@ import (
 )
 
 var (
-	groupHelp        = "Selector of a release series. Examples: 1.0, 1.3."
-	groupHintOptions = []string{"1.0", "1.3"}
+	groupHelp        = "Selector of a release series. Examples: 1.0, 1.1, 1.2."
+	groupHintOptions = []string{"1.0", "1.1", "1.2"}
 
 	channels = []string{
 		"alpha",
@@ -42,6 +43,9 @@ var (
 
 	withGCDefault = "yes"
 	withGCHelp    = "Run GC before update."
+
+	tryTrdlDefault = "yes"
+	tryTrdlHelp    = "Automatically download and use trdl package manager instead of multiwerf, multiwerf is DEPRECATED, more info: https://github.com/werf/trdl. To disable set to 'no'."
 
 	shellDefault = "default"
 )
@@ -75,12 +79,31 @@ func updateCommand(kpApp *kingpin.Application) {
 		withGC             string
 		updateInBackground bool
 		updateOutputFile   string
+		tryTrdl            string
 	)
 
 	// multiwerf update
 	updateCmd := kpApp.
 		Command("update", "Perform self-update and download the actual channel werf binary.").
 		Action(func(c *kingpin.ParseContext) error {
+			channelStr = normalizeChannel(channelStr)
+
+			options := multiwerf.UpdateOptions{
+				SkipSelfUpdate:          selfUpdate == "no",
+				WithCache:               withCache,
+				WithGC:                  withGC == "yes",
+				TryRemoteChannelMapping: update == "yes",
+				OutputFile:              updateOutputFile,
+				TryTrdl:                 tryTrdl == "yes",
+			}
+
+			if options.TryTrdl && !options.SkipSelfUpdate {
+				done, err := tryExecTrdl(NewTrdlWerfUpdateCommand(groupStr, channelStr, os.Stdout, os.Stdout))
+				if done {
+					return err
+				}
+			}
+
 			if updateInBackground {
 				var args []string
 				for _, arg := range os.Args[1:] {
@@ -104,16 +127,6 @@ func updateCommand(kpApp *kingpin.Application) {
 				os.Exit(0)
 			}
 
-			channelStr = normalizeChannel(channelStr)
-
-			options := multiwerf.UpdateOptions{
-				SkipSelfUpdate:          selfUpdate == "no",
-				WithCache:               withCache,
-				WithGC:                  withGC == "yes",
-				TryRemoteChannelMapping: update == "yes",
-				OutputFile:              updateOutputFile,
-			}
-
 			// TODO add special error to exit with 1 and not print error message with kingpin
 			if err := multiwerf.Update(groupStr, channelStr, options); err != nil {
 				os.Exit(1)
@@ -135,6 +148,10 @@ func updateCommand(kpApp *kingpin.Application) {
 		Envar("MULTIWERF_SELF_UPDATE").
 		Default(selfUpdateDefault).
 		StringVar(&selfUpdate)
+	updateCmd.Flag("try-trdl", tryTrdlHelp).
+		Envar("MULTIWERF_TRY_TRDL").
+		Default(tryTrdlDefault).
+		StringVar(&tryTrdl)
 	updateCmd.Flag("with-gc", withGCHelp).
 		Envar("MULTIWERF_WITH_GC").
 		Default(withGCDefault).
@@ -159,19 +176,38 @@ func useCommand(kpApp *kingpin.Application) {
 		forceRemoteCheck bool
 		shell            string
 		asFile           bool
+		tryTrdl          string
 	)
 
 	useCmd := kpApp.
 		Command("use", "Generate the shell script that should be sourced to use the actual channel werf binary in the current shell session based on the local channel mapping.").
 		Action(func(c *kingpin.ParseContext) error {
 			channelStr = normalizeChannel(channelStr)
-
 			options := multiwerf.UseOptions{
 				ForceRemoteCheck:        forceRemoteCheck,
 				AsFile:                  asFile,
 				SkipSelfUpdate:          selfUpdate == "no",
 				TryRemoteChannelMapping: update == "yes",
 				WithGC:                  withGC == "yes",
+				TryTrdl:                 tryTrdl == "yes",
+			}
+
+			if options.TryTrdl && !options.SkipSelfUpdate {
+				logPath := filepath.Join(os.Getenv("HOME"), ".multiwerf", "trdl", "log")
+				if err := os.MkdirAll(filepath.Dir(logPath), os.ModePerm); err != nil {
+					return fmt.Errorf("unable to create dir %s: %s", filepath.Dir(logPath), err)
+				}
+
+				logWriter, err := os.OpenFile(logPath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+				if err != nil {
+					return fmt.Errorf("unable to open file %q: %s", logPath, err)
+				}
+				defer logWriter.Close()
+
+				done, err := tryExecTrdl(NewTrdlWerfUseCommand(groupStr, channelStr, os.Stdout, logWriter, asFile))
+				if done {
+					return err
+				}
 			}
 
 			if err := multiwerf.Use(groupStr, channelStr, shell, options); err != nil {
@@ -199,6 +235,10 @@ func useCommand(kpApp *kingpin.Application) {
 		Envar("MULTIWERF_SELF_UPDATE").
 		Default(selfUpdateDefault).
 		StringVar(&selfUpdate)
+	useCmd.Flag("try-trdl", tryTrdlHelp).
+		Envar("MULTIWERF_TRY_TRDL").
+		Default(tryTrdlDefault).
+		StringVar(&tryTrdl)
 	useCmd.Flag("with-gc", withGCHelp).
 		Envar("MULTIWERF_WITH_GC").
 		Default(withGCDefault).

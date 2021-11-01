@@ -29,6 +29,7 @@ type UpdateOptions struct {
 	WithCache               bool
 	WithGC                  bool
 	OutputFile              string
+	TryTrdl                 bool
 }
 
 // Update checks for the actual version for group/channel and downloads it to StorageDir if it does not already exist
@@ -143,6 +144,7 @@ type UseOptions struct {
 	SkipSelfUpdate          bool
 	TryRemoteChannelMapping bool
 	WithGC                  bool
+	TryTrdl                 bool
 }
 
 // Use:
@@ -178,6 +180,8 @@ func Use(group, channel string, shell string, options UseOptions) (err error) {
 	if !options.WithGC {
 		commonUpdateArgs = append(commonUpdateArgs, "--with-gc=no")
 	}
+
+	commonUpdateArgs = append(commonUpdateArgs, "--try-trdl=no")
 
 	foregroundUpdateArgs := commonUpdateArgs[0:]
 
