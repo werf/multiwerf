@@ -17,5 +17,6 @@ require (
 	github.com/satori/go.uuid v1.2.0
 	github.com/stretchr/testify v1.4.0
 	github.com/werf/lockgate v0.0.0-20200610124531-3e56c66ed101
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 )

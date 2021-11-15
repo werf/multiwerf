@@ -22,11 +22,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
 
-    - name: Set up Go 1.13
-      uses: actions/setup-go@v1
+    - name: Set up Go
+      uses: actions/setup-go@v2
       with:
-        go-version: 1.13
-      id: go
+        go-version: 1.17
 
     - name: Checkout code
       uses: actions/checkout@v1
@@ -81,11 +80,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
 
-    - name: Set up Go 1.13
-      uses: actions/setup-go@v1
+    - name: Set up Go
+      uses: actions/setup-go@v2
       with:
-        go-version: 1.13
-      id: go
+        go-version: 1.17
 
     - name: Checkout code
       uses: actions/checkout@v1
