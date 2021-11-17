@@ -44,8 +44,11 @@ var (
 	withGCDefault = "yes"
 	withGCHelp    = "Run GC before update."
 
-	tryTrdlDefault = "on-self-update"
-	tryTrdlHelp    = "Automatically download and use trdl package manager instead of multiwerf, multiwerf is DEPRECATED, more info: https://github.com/werf/trdl. To disable set to 'no'. Try to use trdl only when self update is enabled by default ('on-self-update')."
+	tryTrdlDefault = "yes"
+	tryTrdlHelp    = "Try to use system trdl package manager instad of multiwerf. Multiwerf is DEPRECATED, more info about trdl: https://github.com/werf/trdl. To disable trdl set to 'no'."
+
+	autoInstallTrdlDefault = "on-self-update"
+	autoInstallTrdlHelp    = "Automatically download trdl package manager and install into the system. Multiwerf is DEPRECATED, more info about trdl: https://github.com/werf/trdl. To disable auto download set to 'no'. Multiwerf will auto-download trdl by default unless self-updates is disabled by the --self-update='no' flag. It is possible to enable auto-download of trdl even if self-updates are disabled by setting option to 'yes' explicitly."
 
 	shellDefault = "default"
 )
@@ -69,16 +72,28 @@ func main() {
 	}
 }
 
-func getTryTrdl(tryTrdl string, skipSelfUpdate bool) bool {
-	var res bool
-	switch tryTrdl {
+func getAutoInstallTrdlOption(rawInput string, tryTrdlOption, skipSelfUpdateOption bool) (bool, error) {
+	switch rawInput {
 	case "yes":
-		res = true
+		return tryTrdlOption, nil
 	case "on-self-update":
-		res = !skipSelfUpdate
+		return tryTrdlOption && !skipSelfUpdateOption, nil
+	case "no":
+		return false, nil
+	default:
+		return false, fmt.Errorf("bad --auto-install-trdl=%s option given, expected 'yes', 'no' or 'on-self-update'", rawInput)
 	}
+}
 
-	return res
+func getTryTrdlOption(rawInput string) (bool, error) {
+	switch rawInput {
+	case "yes":
+		return true, nil
+	case "no":
+		return false, nil
+	default:
+		return false, fmt.Errorf("bad --try-trdl=%s option given, expected 'yes' or 'no'", rawInput)
+	}
 }
 
 func updateCommand(kpApp *kingpin.Application) {
@@ -92,6 +107,7 @@ func updateCommand(kpApp *kingpin.Application) {
 		updateInBackground bool
 		updateOutputFile   string
 		tryTrdl            string
+		autoInstallTrdl    string
 	)
 
 	// multiwerf update
@@ -108,10 +124,20 @@ func updateCommand(kpApp *kingpin.Application) {
 				OutputFile:              updateOutputFile,
 			}
 
-			options.TryTrdl = getTryTrdl(tryTrdl, options.SkipSelfUpdate)
+			if value, err := getTryTrdlOption(tryTrdl); err != nil {
+				return err
+			} else {
+				options.TryTrdl = value
+			}
+
+			if value, err := getAutoInstallTrdlOption(autoInstallTrdl, options.TryTrdl, options.SkipSelfUpdate); err != nil {
+				return err
+			} else {
+				options.AutoInstallTrdl = value
+			}
 
 			if options.TryTrdl {
-				done, err := tryExecTrdl(NewTrdlWerfUpdateCommand(groupStr, channelStr, os.Stdout, os.Stdout))
+				done, err := tryExecTrdl(NewTrdlWerfUpdateCommand(groupStr, channelStr, os.Stdout, os.Stdout), options.AutoInstallTrdl)
 				if done {
 					return err
 				}
@@ -165,6 +191,10 @@ func updateCommand(kpApp *kingpin.Application) {
 		Envar("MULTIWERF_TRY_TRDL").
 		Default(tryTrdlDefault).
 		StringVar(&tryTrdl)
+	updateCmd.Flag("auto-install-trdl", autoInstallTrdlHelp).
+		Envar("MULTIWERF_AUTO_INSTALL_TRDL").
+		Default(autoInstallTrdlDefault).
+		StringVar(&autoInstallTrdl)
 	updateCmd.Flag("with-gc", withGCHelp).
 		Envar("MULTIWERF_WITH_GC").
 		Default(withGCDefault).
@@ -190,6 +220,7 @@ func useCommand(kpApp *kingpin.Application) {
 		shell            string
 		asFile           bool
 		tryTrdl          string
+		autoInstallTrdl  string
 	)
 
 	useCmd := kpApp.
@@ -204,7 +235,17 @@ func useCommand(kpApp *kingpin.Application) {
 				WithGC:                  withGC == "yes",
 			}
 
-			options.TryTrdl = getTryTrdl(tryTrdl, options.SkipSelfUpdate)
+			if value, err := getTryTrdlOption(tryTrdl); err != nil {
+				return err
+			} else {
+				options.TryTrdl = value
+			}
+
+			if value, err := getAutoInstallTrdlOption(autoInstallTrdl, options.TryTrdl, options.SkipSelfUpdate); err != nil {
+				return err
+			} else {
+				options.AutoInstallTrdl = value
+			}
 
 			if options.TryTrdl {
 				logPath := filepath.Join(os.Getenv("HOME"), ".multiwerf", "trdl", "log")
@@ -218,7 +259,7 @@ func useCommand(kpApp *kingpin.Application) {
 				}
 				defer logWriter.Close()
 
-				done, err := tryExecTrdl(NewTrdlWerfUseCommand(groupStr, channelStr, os.Stdout, logWriter, asFile))
+				done, err := tryExecTrdl(NewTrdlWerfUseCommand(groupStr, channelStr, os.Stdout, logWriter, asFile), options.AutoInstallTrdl)
 				if done {
 					return err
 				}
@@ -253,6 +294,10 @@ func useCommand(kpApp *kingpin.Application) {
 		Envar("MULTIWERF_TRY_TRDL").
 		Default(tryTrdlDefault).
 		StringVar(&tryTrdl)
+	useCmd.Flag("auto-install-trdl", autoInstallTrdlHelp).
+		Envar("MULTIWERF_AUTO_INSTALL_TRDL").
+		Default(autoInstallTrdlDefault).
+		StringVar(&autoInstallTrdl)
 	useCmd.Flag("with-gc", withGCHelp).
 		Envar("MULTIWERF_WITH_GC").
 		Default(withGCDefault).
@@ -267,6 +312,7 @@ func werfPathCommand(kpApp *kingpin.Application) {
 	var (
 		groupStr   string
 		channelStr string
+		tryTrdl    string
 	)
 
 	werfPathCmd := kpApp.
@@ -274,8 +320,30 @@ func werfPathCommand(kpApp *kingpin.Application) {
 		Action(func(c *kingpin.ParseContext) error {
 			channelStr = normalizeChannel(channelStr)
 
-			err := multiwerf.WerfPath(groupStr, channelStr)
+			tryTrdlOption, err := getTryTrdlOption(tryTrdl)
 			if err != nil {
+				return err
+			}
+
+			if tryTrdlOption {
+				logPath := filepath.Join(os.Getenv("HOME"), ".multiwerf", "trdl", "log")
+				if err := os.MkdirAll(filepath.Dir(logPath), os.ModePerm); err != nil {
+					return fmt.Errorf("unable to create dir %s: %s", filepath.Dir(logPath), err)
+				}
+
+				logWriter, err := os.OpenFile(logPath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+				if err != nil {
+					return fmt.Errorf("unable to open file %q: %s", logPath, err)
+				}
+				defer logWriter.Close()
+
+				done, err := tryExecTrdl(NewTrdlWerfBinPathCommand(groupStr, channelStr, os.Stdout, logWriter), false)
+				if done {
+					return err
+				}
+			}
+
+			if err := multiwerf.WerfPath(groupStr, channelStr); err != nil {
 				os.Exit(1)
 			}
 			return nil
@@ -288,20 +356,49 @@ func werfPathCommand(kpApp *kingpin.Application) {
 		HintOptions(channels...).
 		Default("stable").
 		EnumVar(&channelStr, channelEnum...)
+	werfPathCmd.Flag("try-trdl", tryTrdlHelp).
+		Envar("MULTIWERF_TRY_TRDL").
+		Default(tryTrdlDefault).
+		StringVar(&tryTrdl)
 }
 
 func werfExecCommand(kpApp *kingpin.Application) {
-	var groupStr string
-	var channelStr string
-	var werfArgs []string
+	var (
+		groupStr   string
+		channelStr string
+		werfArgs   []string
+		tryTrdl    string
+	)
 
 	werfExecCmd := kpApp.
 		Command("werf-exec", "Exec the actual channel werf binary based on the local channel mapping.").
 		Action(func(c *kingpin.ParseContext) error {
 			channelStr = normalizeChannel(channelStr)
 
-			err := multiwerf.WerfExec(groupStr, channelStr, werfArgs)
+			tryTrdlOption, err := getTryTrdlOption(tryTrdl)
 			if err != nil {
+				return err
+			}
+
+			if tryTrdlOption {
+				logPath := filepath.Join(os.Getenv("HOME"), ".multiwerf", "trdl", "log")
+				if err := os.MkdirAll(filepath.Dir(logPath), os.ModePerm); err != nil {
+					return fmt.Errorf("unable to create dir %s: %s", filepath.Dir(logPath), err)
+				}
+
+				logWriter, err := os.OpenFile(logPath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+				if err != nil {
+					return fmt.Errorf("unable to open file %q: %s", logPath, err)
+				}
+				defer logWriter.Close()
+
+				done, err := tryExecTrdl(NewTrdlWerfExecCommand(groupStr, channelStr, werfArgs, os.Stdout, logWriter), false)
+				if done {
+					return err
+				}
+			}
+
+			if err := multiwerf.WerfExec(groupStr, channelStr, werfArgs); err != nil {
 				os.Exit(1)
 			}
 			return nil
@@ -316,6 +413,10 @@ func werfExecCommand(kpApp *kingpin.Application) {
 		EnumVar(&channelStr, channelEnum...)
 	werfExecCmd.Arg("WERF_ARGS", "Pass args to werf binary.").
 		StringsVar(&werfArgs)
+	werfExecCmd.Flag("try-trdl", tryTrdlHelp).
+		Envar("MULTIWERF_TRY_TRDL").
+		Default(tryTrdlDefault).
+		StringVar(&tryTrdl)
 }
 
 func werfGCCommand(kpApp *kingpin.Application) {
