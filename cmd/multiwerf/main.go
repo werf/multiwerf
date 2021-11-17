@@ -44,8 +44,8 @@ var (
 	withGCDefault = "yes"
 	withGCHelp    = "Run GC before update."
 
-	tryTrdlDefault = "yes"
-	tryTrdlHelp    = "Automatically download and use trdl package manager instead of multiwerf, multiwerf is DEPRECATED, more info: https://github.com/werf/trdl. To disable set to 'no'."
+	tryTrdlDefault = "on-self-update"
+	tryTrdlHelp    = "Automatically download and use trdl package manager instead of multiwerf, multiwerf is DEPRECATED, more info: https://github.com/werf/trdl. To disable set to 'no'. Try to use trdl only when self update is enabled by default ('on-self-update')."
 
 	shellDefault = "default"
 )
@@ -67,6 +67,18 @@ func main() {
 		kingpin.MustParse(command, err)
 		os.Exit(1)
 	}
+}
+
+func getTryTrdl(tryTrdl string, skipSelfUpdate bool) bool {
+	var res bool
+	switch tryTrdl {
+	case "yes":
+		res = true
+	case "on-self-update":
+		res = !skipSelfUpdate
+	}
+
+	return res
 }
 
 func updateCommand(kpApp *kingpin.Application) {
@@ -94,10 +106,11 @@ func updateCommand(kpApp *kingpin.Application) {
 				WithGC:                  withGC == "yes",
 				TryRemoteChannelMapping: update == "yes",
 				OutputFile:              updateOutputFile,
-				TryTrdl:                 tryTrdl == "yes",
 			}
 
-			if options.TryTrdl && !options.SkipSelfUpdate {
+			options.TryTrdl = getTryTrdl(tryTrdl, options.SkipSelfUpdate)
+
+			if options.TryTrdl {
 				done, err := tryExecTrdl(NewTrdlWerfUpdateCommand(groupStr, channelStr, os.Stdout, os.Stdout))
 				if done {
 					return err
@@ -189,10 +202,11 @@ func useCommand(kpApp *kingpin.Application) {
 				SkipSelfUpdate:          selfUpdate == "no",
 				TryRemoteChannelMapping: update == "yes",
 				WithGC:                  withGC == "yes",
-				TryTrdl:                 tryTrdl == "yes",
 			}
 
-			if options.TryTrdl && !options.SkipSelfUpdate {
+			options.TryTrdl = getTryTrdl(tryTrdl, options.SkipSelfUpdate)
+
+			if options.TryTrdl {
 				logPath := filepath.Join(os.Getenv("HOME"), ".multiwerf", "trdl", "log")
 				if err := os.MkdirAll(filepath.Dir(logPath), os.ModePerm); err != nil {
 					return fmt.Errorf("unable to create dir %s: %s", filepath.Dir(logPath), err)
