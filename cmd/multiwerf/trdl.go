@@ -96,7 +96,7 @@ func makeTrdlBinLatestURL() (string, string) {
 	return url, sigUrl
 }
 
-func tryExecTrdl(cmd TrdlCommand) (bool, error) {
+func tryExecTrdl(cmd TrdlCommand, autoInstallTrdl bool) (bool, error) {
 	installed, err := isTrdlInstalled(cmd.GetLogWriter())
 	if err != nil {
 		err = cmd.ConstructCommandError(err)
@@ -104,6 +104,10 @@ func tryExecTrdl(cmd TrdlCommand) (bool, error) {
 		return false, err
 	}
 	if !installed {
+		if !autoInstallTrdl {
+			return false, fmt.Errorf("trdl is not installed into the system")
+		}
+
 		if err := unsetFlag("trdl_enabled"); err != nil {
 			err = cmd.ConstructCommandError(err)
 			cmd.LogCommandError(err)
@@ -512,6 +516,111 @@ func (command *TrdlWerfUseCommand) Exec(isTrdlEnabled bool) error {
 		}
 		fmt.Fprintf(command.Stdout, "%s", data)
 	}
+
+	return nil
+}
+
+type TrdlWerfBinPathCommand struct {
+	TrdlCommandCommonParams
+
+	logBuf bytes.Buffer
+}
+
+func NewTrdlWerfBinPathCommand(group, channel string, stdout, logWriter io.Writer) *TrdlWerfBinPathCommand {
+	return &TrdlWerfBinPathCommand{
+		TrdlCommandCommonParams: TrdlCommandCommonParams{
+			Group:     group,
+			Channel:   channel,
+			Stdout:    stdout,
+			LogWriter: logWriter,
+		},
+	}
+}
+
+func (command *TrdlWerfBinPathCommand) Write(p []byte) (int, error) {
+	return command.logBuf.Write(p)
+}
+
+func (command *TrdlWerfBinPathCommand) GetLogWriter() io.Writer {
+	return command
+}
+
+func (command *TrdlWerfBinPathCommand) LogCommandError(err error) {
+	fmt.Fprintf(command.LogWriter, "Trdl bin-path werf command logs:\n%s\n", err)
+}
+
+func (command *TrdlWerfBinPathCommand) ConstructCommandError(err error) error {
+	return fmt.Errorf("%s\n%s", command.logBuf.String(), err)
+}
+
+func (command *TrdlWerfBinPathCommand) Exec(isTrdlEnabled bool) error {
+	fmt.Fprintf(command.GetLogWriter(), "Running trdl bin-path command ...\n")
+	cmd := exec.Command("trdl", "bin-path", "werf", command.Group, command.Channel)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("trdl bin-path command failed: %s\n%s", err, strings.TrimSpace(string(output)))
+	}
+
+	fmt.Fprintf(command.Stdout, "%s", output)
+
+	return nil
+}
+
+type TrdlWerfExecCommand struct {
+	TrdlCommandCommonParams
+
+	WerfArgs []string
+
+	logBuf bytes.Buffer
+}
+
+func NewTrdlWerfExecCommand(group, channel string, werfArgs []string, stdout, logWriter io.Writer) *TrdlWerfExecCommand {
+	return &TrdlWerfExecCommand{
+		TrdlCommandCommonParams: TrdlCommandCommonParams{
+			Group:     group,
+			Channel:   channel,
+			Stdout:    stdout,
+			LogWriter: logWriter,
+		},
+		WerfArgs: werfArgs,
+	}
+}
+
+func (command *TrdlWerfExecCommand) Write(p []byte) (int, error) {
+	return command.logBuf.Write(p)
+}
+
+func (command *TrdlWerfExecCommand) GetLogWriter() io.Writer {
+	return command
+}
+
+func (command *TrdlWerfExecCommand) LogCommandError(err error) {
+	fmt.Fprintf(command.LogWriter, "Trdl exec werf command logs:\n%s\n", err)
+}
+
+func (command *TrdlWerfExecCommand) ConstructCommandError(err error) error {
+	return fmt.Errorf("%s\n%s", command.logBuf.String(), err)
+}
+
+func (command *TrdlWerfExecCommand) Exec(isTrdlEnabled bool) error {
+	fmt.Fprintf(command.GetLogWriter(), "Running trdl exec command ...\n")
+
+	args := []string{"exec", "werf", command.Group, command.Channel}
+
+	if len(command.WerfArgs) > 0 {
+		args = append(args, "--")
+		args = append(args, command.WerfArgs...)
+	}
+
+	cmd := exec.Command("trdl", args...)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("trdl exec command failed: %s\n%s", err, strings.TrimSpace(string(output)))
+	}
+
+	fmt.Fprintf(command.Stdout, "%s", output)
 
 	return nil
 }

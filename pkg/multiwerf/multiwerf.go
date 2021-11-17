@@ -30,6 +30,7 @@ type UpdateOptions struct {
 	WithGC                  bool
 	OutputFile              string
 	TryTrdl                 bool
+	AutoInstallTrdl         bool
 }
 
 // Update checks for the actual version for group/channel and downloads it to StorageDir if it does not already exist
@@ -145,6 +146,7 @@ type UseOptions struct {
 	TryRemoteChannelMapping bool
 	WithGC                  bool
 	TryTrdl                 bool
+	AutoInstallTrdl         bool
 }
 
 // Use:
