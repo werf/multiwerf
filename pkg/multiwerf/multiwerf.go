@@ -12,6 +12,8 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/werf/multiwerf/pkg/trdlexec"
+
 	"github.com/werf/lockgate/pkg/util"
 	"github.com/werf/multiwerf/pkg/app"
 	"github.com/werf/multiwerf/pkg/locker"
@@ -74,6 +76,13 @@ func Update(group, channel string, options UpdateOptions) (err error) {
 
 	if err := PerformSelfUpdate(printer, options.SkipSelfUpdate); err != nil {
 		return err
+	}
+
+	if options.TryTrdl {
+		done, err := trdlexec.TryExecTrdl(trdlexec.NewTrdlWerfUpdateCommand(group, channel, os.Stdout, os.Stdout), options.AutoInstallTrdl)
+		if done {
+			return err
+		}
 	}
 
 	if options.WithGC {
@@ -157,6 +166,24 @@ type UseOptions struct {
 // * multiwerf update procedure that will be performed on background or foreground and
 // * werf alias that uses path to the actual werf binary
 func Use(group, channel string, shell string, options UseOptions) (err error) {
+	if options.TryTrdl {
+		logPath := filepath.Join(os.Getenv("HOME"), ".multiwerf", "trdl", "log")
+		if err := os.MkdirAll(filepath.Dir(logPath), os.ModePerm); err != nil {
+			return fmt.Errorf("unable to create dir %s: %s", filepath.Dir(logPath), err)
+		}
+
+		logWriter, err := os.OpenFile(logPath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+		if err != nil {
+			return fmt.Errorf("unable to open file %q: %s", logPath, err)
+		}
+		defer logWriter.Close()
+
+		done, err := trdlexec.TryExecTrdl(trdlexec.NewTrdlWerfUseCommand(group, channel, os.Stdout, logWriter, options.AsFile), options.AutoInstallTrdl)
+		if done {
+			return err
+		}
+	}
+
 	printer := output.NewSilentPrint()
 	if err := ValidateGroup(group, printer); err != nil {
 		return err
@@ -338,7 +365,25 @@ eval "$WERF_FUNC"
 }
 
 // WerfPath prints path to the actual version available for the group/channel based on local channel mapping
-func WerfPath(group string, channel string) (err error) {
+func WerfPath(group string, channel string, tryTrdlOption bool) (err error) {
+	if tryTrdlOption {
+		logPath := filepath.Join(os.Getenv("HOME"), ".multiwerf", "trdl", "log")
+		if err := os.MkdirAll(filepath.Dir(logPath), os.ModePerm); err != nil {
+			return fmt.Errorf("unable to create dir %s: %s", filepath.Dir(logPath), err)
+		}
+
+		logWriter, err := os.OpenFile(logPath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+		if err != nil {
+			return fmt.Errorf("unable to open file %q: %s", logPath, err)
+		}
+		defer logWriter.Close()
+
+		done, err := trdlexec.TryExecTrdl(trdlexec.NewTrdlWerfBinPathCommand(group, channel, os.Stdout, logWriter), false)
+		if done {
+			return err
+		}
+	}
+
 	printer := output.NewSilentPrint()
 
 	if err := ValidateGroup(group, printer); err != nil {
@@ -367,7 +412,25 @@ func WerfPath(group string, channel string) (err error) {
 }
 
 // WerfExec launches the latest binary version available for the group/channel based on local channel mapping
-func WerfExec(group, channel string, args []string) (err error) {
+func WerfExec(group, channel string, args []string, tryTrdlOption bool) (err error) {
+	if tryTrdlOption {
+		logPath := filepath.Join(os.Getenv("HOME"), ".multiwerf", "trdl", "log")
+		if err := os.MkdirAll(filepath.Dir(logPath), os.ModePerm); err != nil {
+			return fmt.Errorf("unable to create dir %s: %s", filepath.Dir(logPath), err)
+		}
+
+		logWriter, err := os.OpenFile(logPath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+		if err != nil {
+			return fmt.Errorf("unable to open file %q: %s", logPath, err)
+		}
+		defer logWriter.Close()
+
+		done, err := trdlexec.TryExecTrdl(trdlexec.NewTrdlWerfExecCommand(group, channel, args, os.Stdout, logWriter), false)
+		if done {
+			return err
+		}
+	}
+
 	printer := output.NewSilentPrint()
 
 	if err := ValidateGroup(group, printer); err != nil {

@@ -1,4 +1,4 @@
-package main
+package trdlexec
 
 import (
 	"bufio"
@@ -96,7 +96,7 @@ func makeTrdlBinLatestURL() (string, string) {
 	return url, sigUrl
 }
 
-func tryExecTrdl(cmd TrdlCommand, autoInstallTrdl bool) (bool, error) {
+func TryExecTrdl(cmd TrdlCommand, autoInstallTrdl bool) (bool, error) {
 	installed, err := isTrdlInstalled(cmd.GetLogWriter())
 	if err != nil {
 		err = cmd.ConstructCommandError(err)
@@ -108,7 +108,7 @@ func tryExecTrdl(cmd TrdlCommand, autoInstallTrdl bool) (bool, error) {
 			return false, fmt.Errorf("trdl is not installed into the system")
 		}
 
-		if err := unsetFlag("trdl_enabled"); err != nil {
+		if err := unsetFlag(fmt.Sprintf("%s.%s.trdl_enabled", cmd.GetGroup(), cmd.GetChannel())); err != nil {
 			err = cmd.ConstructCommandError(err)
 			cmd.LogCommandError(err)
 			return false, err
@@ -128,7 +128,7 @@ func tryExecTrdl(cmd TrdlCommand, autoInstallTrdl bool) (bool, error) {
 		return false, err
 	}
 	if !repoInstalled {
-		if err := unsetFlag("trdl_enabled"); err != nil {
+		if err := unsetFlag(fmt.Sprintf("%s.%s.trdl_enabled", cmd.GetGroup(), cmd.GetChannel())); err != nil {
 			err = cmd.ConstructCommandError(err)
 			cmd.LogCommandError(err)
 			return false, err
@@ -141,7 +141,7 @@ func tryExecTrdl(cmd TrdlCommand, autoInstallTrdl bool) (bool, error) {
 		}
 	}
 
-	isTrdlEnabled, err := isFlagSet("trdl_enabled")
+	isTrdlEnabled, err := isFlagSet(fmt.Sprintf("%s.%s.trdl_enabled", cmd.GetGroup(), cmd.GetChannel()))
 	if err != nil {
 		err = cmd.ConstructCommandError(err)
 		cmd.LogCommandError(err)
@@ -162,7 +162,7 @@ func tryExecTrdl(cmd TrdlCommand, autoInstallTrdl bool) (bool, error) {
 		return isTrdlEnabled, retErr
 	}
 
-	if err := setFlag("trdl_enabled"); err != nil {
+	if err := setFlag(fmt.Sprintf("%s.%s.trdl_enabled", cmd.GetGroup(), cmd.GetChannel())); err != nil {
 		err = cmd.ConstructCommandError(err)
 		cmd.LogCommandError(err)
 		return false, err
@@ -396,6 +396,8 @@ type TrdlCommand interface {
 	GetLogWriter() io.Writer
 	ConstructCommandError(error) error
 	LogCommandError(error)
+	GetGroup() string
+	GetChannel() string
 }
 
 type TrdlCommandCommonParams struct {
@@ -403,6 +405,14 @@ type TrdlCommandCommonParams struct {
 	Channel   string
 	Stdout    io.Writer
 	LogWriter io.Writer
+}
+
+func (command *TrdlCommandCommonParams) GetGroup() string {
+	return command.Group
+}
+
+func (command *TrdlCommandCommonParams) GetChannel() string {
+	return command.Channel
 }
 
 type TrdlWerfUpdateCommand struct {
@@ -561,8 +571,9 @@ func (command *TrdlWerfBinPathCommand) Exec(isTrdlEnabled bool) error {
 	if err != nil {
 		return fmt.Errorf("trdl bin-path command failed: %s\n%s", err, strings.TrimSpace(string(output)))
 	}
+	path := strings.TrimSpace(string(output))
 
-	fmt.Fprintf(command.Stdout, "%s", output)
+	fmt.Fprintf(command.Stdout, "%s\n", filepath.Join(path, "werf"))
 
 	return nil
 }

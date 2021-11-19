@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -136,13 +135,6 @@ func updateCommand(kpApp *kingpin.Application) {
 				options.AutoInstallTrdl = value
 			}
 
-			if options.TryTrdl {
-				done, err := tryExecTrdl(NewTrdlWerfUpdateCommand(groupStr, channelStr, os.Stdout, os.Stdout), options.AutoInstallTrdl)
-				if done {
-					return err
-				}
-			}
-
 			if updateInBackground {
 				var args []string
 				for _, arg := range os.Args[1:] {
@@ -247,24 +239,6 @@ func useCommand(kpApp *kingpin.Application) {
 				options.AutoInstallTrdl = value
 			}
 
-			if options.TryTrdl {
-				logPath := filepath.Join(os.Getenv("HOME"), ".multiwerf", "trdl", "log")
-				if err := os.MkdirAll(filepath.Dir(logPath), os.ModePerm); err != nil {
-					return fmt.Errorf("unable to create dir %s: %s", filepath.Dir(logPath), err)
-				}
-
-				logWriter, err := os.OpenFile(logPath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-				if err != nil {
-					return fmt.Errorf("unable to open file %q: %s", logPath, err)
-				}
-				defer logWriter.Close()
-
-				done, err := tryExecTrdl(NewTrdlWerfUseCommand(groupStr, channelStr, os.Stdout, logWriter, asFile), options.AutoInstallTrdl)
-				if done {
-					return err
-				}
-			}
-
 			if err := multiwerf.Use(groupStr, channelStr, shell, options); err != nil {
 				os.Exit(1)
 			}
@@ -325,25 +299,7 @@ func werfPathCommand(kpApp *kingpin.Application) {
 				return err
 			}
 
-			if tryTrdlOption {
-				logPath := filepath.Join(os.Getenv("HOME"), ".multiwerf", "trdl", "log")
-				if err := os.MkdirAll(filepath.Dir(logPath), os.ModePerm); err != nil {
-					return fmt.Errorf("unable to create dir %s: %s", filepath.Dir(logPath), err)
-				}
-
-				logWriter, err := os.OpenFile(logPath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-				if err != nil {
-					return fmt.Errorf("unable to open file %q: %s", logPath, err)
-				}
-				defer logWriter.Close()
-
-				done, err := tryExecTrdl(NewTrdlWerfBinPathCommand(groupStr, channelStr, os.Stdout, logWriter), false)
-				if done {
-					return err
-				}
-			}
-
-			if err := multiwerf.WerfPath(groupStr, channelStr); err != nil {
+			if err := multiwerf.WerfPath(groupStr, channelStr, tryTrdlOption); err != nil {
 				os.Exit(1)
 			}
 			return nil
@@ -380,25 +336,7 @@ func werfExecCommand(kpApp *kingpin.Application) {
 				return err
 			}
 
-			if tryTrdlOption {
-				logPath := filepath.Join(os.Getenv("HOME"), ".multiwerf", "trdl", "log")
-				if err := os.MkdirAll(filepath.Dir(logPath), os.ModePerm); err != nil {
-					return fmt.Errorf("unable to create dir %s: %s", filepath.Dir(logPath), err)
-				}
-
-				logWriter, err := os.OpenFile(logPath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-				if err != nil {
-					return fmt.Errorf("unable to open file %q: %s", logPath, err)
-				}
-				defer logWriter.Close()
-
-				done, err := tryExecTrdl(NewTrdlWerfExecCommand(groupStr, channelStr, werfArgs, os.Stdout, logWriter), false)
-				if done {
-					return err
-				}
-			}
-
-			if err := multiwerf.WerfExec(groupStr, channelStr, werfArgs); err != nil {
+			if err := multiwerf.WerfExec(groupStr, channelStr, werfArgs, tryTrdlOption); err != nil {
 				os.Exit(1)
 			}
 			return nil
