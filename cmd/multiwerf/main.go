@@ -47,7 +47,7 @@ var (
 	tryTrdlHelp    = "Try to use system trdl package manager instad of multiwerf. Multiwerf is DEPRECATED, more info about trdl: https://github.com/werf/trdl. To disable trdl set to 'no'."
 
 	autoInstallTrdlDefault = "on-self-update"
-	autoInstallTrdlHelp    = "Automatically download trdl package manager and install into the system. Multiwerf is DEPRECATED, more info about trdl: https://github.com/werf/trdl. To disable auto download set to 'no'. Multiwerf will auto-download trdl by default unless self-updates is disabled by the --self-update='no' flag. It is possible to enable auto-download of trdl even if self-updates are disabled by setting option to 'yes' explicitly."
+	autoInstallTrdlHelp    = "Automatically download trdl package manager and install into the system. Multiwerf is DEPRECATED, more info about trdl: https://github.com/werf/trdl. To disable auto download set to 'no'. Multiwerf will auto-download trdl by default unless self-updates are disabled by the --self-update='no' flag. It is possible to enable auto-download of trdl even if self-updates are disabled by setting option to 'yes' explicitly."
 
 	shellDefault = "default"
 )
@@ -58,6 +58,7 @@ func main() {
 	app.SetupGlobalSettings(kpApp)
 
 	updateCommand(kpApp)
+	selfUpdateCommand(kpApp)
 	useCommand(kpApp)
 	werfPathCommand(kpApp)
 	werfExecCommand(kpApp)
@@ -93,6 +94,54 @@ func getTryTrdlOption(rawInput string) (bool, error) {
 	default:
 		return false, fmt.Errorf("bad --try-trdl=%s option given, expected 'yes' or 'no'", rawInput)
 	}
+}
+
+func selfUpdateCommand(kpApp *kingpin.Application) {
+	var (
+		updateInBackground bool
+		outputFile         string
+	)
+
+	selfUpdateCmd := kpApp.
+		Command("self-update", "Perform self-update of multiwerf.").
+		Action(func(c *kingpin.ParseContext) error {
+			if updateInBackground {
+				var args []string
+				for _, arg := range os.Args[1:] {
+					if arg == "--in-background" || strings.HasPrefix(arg, "--in-background=") {
+						continue
+					}
+					args = append(args, arg)
+				}
+
+				cmd := exec.Command(os.Args[0], args...)
+				if err := cmd.Start(); err != nil {
+					fmt.Printf("command '%s' start failed: %s\n", strings.Join(append(os.Args[:0], args...), " "), err.Error())
+					os.Exit(1)
+				}
+
+				if err := cmd.Process.Release(); err != nil {
+					fmt.Printf("process release failed: %s\n", err.Error())
+					return err
+				}
+
+				os.Exit(0)
+			}
+
+			if err := multiwerf.SelfUpdate(multiwerf.SelfUpdateOptions{
+				OutputFile: outputFile,
+			}); err != nil {
+				fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
+				os.Exit(1)
+			}
+
+			return nil
+		})
+
+	selfUpdateCmd.Flag("in-background", "Enable running process in background").
+		BoolVar(&updateInBackground)
+	selfUpdateCmd.Flag("output-file", "Save command output in file").
+		StringVar(&outputFile)
 }
 
 func updateCommand(kpApp *kingpin.Application) {

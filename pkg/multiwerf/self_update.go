@@ -21,7 +21,7 @@ import (
 const SelfUpdateLockName = "self-update"
 
 // update multiwerf binary (self-update)
-func PerformSelfUpdate(printer output.Printer, skipSelfUpdate bool) (err error) {
+func PerformSelfUpdate(printer output.Printer, skipSelfUpdate bool, skipReexecAfterUpdate bool) (err error) {
 	messages := make(chan ActionMessage, 0)
 	selfPath := ""
 
@@ -104,9 +104,9 @@ func PerformSelfUpdate(printer output.Printer, skipSelfUpdate bool) (err error) 
 			msgType: OkMsgType,
 		}
 
-		selfPath = SelfUpdate(messages)
+		selfPath = doSelfUpdate(messages)
 
-		// Stop PrintActionMessages after return from SelfUpdate
+		// Stop PrintActionMessages after return from doSelfUpdate
 		messages <- ActionMessage{action: "exit"}
 	}()
 
@@ -115,7 +115,7 @@ func PerformSelfUpdate(printer output.Printer, skipSelfUpdate bool) (err error) 
 	}
 
 	// restart myself if new binary was downloaded
-	if selfPath != "" {
+	if selfPath != "" && !skipReexecAfterUpdate {
 		err := ExecUpdatedBinary(selfPath)
 		if err != nil {
 			PrintActionMessage(
@@ -133,9 +133,9 @@ func PerformSelfUpdate(printer output.Printer, skipSelfUpdate bool) (err error) 
 	return nil
 }
 
-// SelfUpdate checks for new version of multiwerf, download it and execute as a new process.
+// doSelfUpdate checks for new version of multiwerf, download it and execute as a new process.
 // Note: multiwerf has no option to exit on self-update errors.
-func SelfUpdate(messages chan ActionMessage) string {
+func doSelfUpdate(messages chan ActionMessage) string {
 	// TODO check if executable is writable and stop self update if it is not.
 	selfPath, err := GetSelfExecutableInfo()
 	if err != nil {
