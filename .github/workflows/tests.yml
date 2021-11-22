@@ -135,7 +135,7 @@ jobs:
 
     - name: Self-update in the background (sh)
       run: |
-        . $(multiwerf use 1.0 stable --as-file --self-update=yes --shell default)
+        . $(multiwerf use 1.0 stable --as-file --self-update=yes --try-trdl=no --shell default)
         old_multiwerf_version=$(multiwerf version)
 
         werf
@@ -155,7 +155,7 @@ jobs:
 
     - name: Self-update in the background (bash)
       run: |
-        . $(multiwerf use 1.0 stable --as-file --self-update=yes --shell default)
+        . $(multiwerf use 1.0 stable --as-file --self-update=yes --try-trdl=no --shell default)
         old_multiwerf_version=$(multiwerf version)
 
         werf
@@ -175,7 +175,7 @@ jobs:
 
     - name: Self-update in the background (bash, windows-latest)
       run: |
-        . $(multiwerf use 1.0 stable --as-file --self-update=yes --shell default)
+        . $(multiwerf use 1.0 stable --as-file --self-update=yes --try-trdl=no --shell default)
         old_multiwerf_version=$(multiwerf version)
 
         werf
@@ -190,7 +190,7 @@ jobs:
 
     - name: Self-update in the background (cmd)
       run: |
-        FOR /F "tokens=*" %%g IN ('multiwerf use 1.0 stable --as-file --self-update=yes --shell cmdexe') do (SET WERF_USE_SCRIPT_PATH=%%g)
+        FOR /F "tokens=*" %%g IN ('multiwerf use 1.0 stable --as-file --self-update=yes --try-trdl=no --shell cmdexe') do (SET WERF_USE_SCRIPT_PATH=%%g)
         %WERF_USE_SCRIPT_PATH%
         FOR /F "tokens=*" %%g IN ('multiwerf version') do (SET old_multiwerf_version=%%g)
 
@@ -206,7 +206,7 @@ jobs:
 
     - name: Self-update in the background (powershell)
       run: |
-        Invoke-Expression -Command "multiwerf use 1.0 stable --as-file --self-update=yes --shell powershell" | Out-String -OutVariable WERF_USE_SCRIPT_PATH
+        Invoke-Expression -Command "multiwerf use 1.0 stable --as-file --self-update=yes --try-trdl=no --shell powershell" | Out-String -OutVariable WERF_USE_SCRIPT_PATH
         . $WERF_USE_SCRIPT_PATH.Trim()
         Invoke-Expression -Command "multiwerf version" | Out-String -OutVariable old_multiwerf_version
 

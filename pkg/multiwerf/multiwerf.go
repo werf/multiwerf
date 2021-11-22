@@ -25,6 +25,42 @@ var (
 	TmpDir     string
 )
 
+type SelfUpdateOptions struct {
+	OutputFile string
+}
+
+func SelfUpdate(options SelfUpdateOptions) error {
+	var w io.Writer
+	if options.OutputFile != "" {
+		dirPath := filepath.Dir(options.OutputFile)
+		if err := os.MkdirAll(dirPath, 0755); err != nil {
+			return fmt.Errorf("mkdir '%s' failed: %s", dirPath, err)
+		}
+
+		f, err := os.OpenFile(options.OutputFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+		if err != nil {
+			return fmt.Errorf("open log file '%s' failed: %s", options.OutputFile, err)
+		}
+		defer f.Close()
+
+		w = f
+	} else {
+		w = os.Stdout
+	}
+
+	printer := output.NewSimplePrint(w)
+
+	if err := SetupStorageDir(printer); err != nil {
+		return err
+	}
+
+	if err := PerformSelfUpdate(printer, false, true); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 type UpdateOptions struct {
 	SkipSelfUpdate          bool
 	TryRemoteChannelMapping bool
@@ -74,12 +110,15 @@ func Update(group, channel string, options UpdateOptions) (err error) {
 		return err
 	}
 
-	if err := PerformSelfUpdate(printer, options.SkipSelfUpdate); err != nil {
+	if err := PerformSelfUpdate(printer, options.SkipSelfUpdate, false); err != nil {
 		return err
 	}
 
 	if options.TryTrdl {
 		done, err := trdlexec.TryExecTrdl(trdlexec.NewTrdlWerfUpdateCommand(group, channel, os.Stdout, os.Stdout), options.AutoInstallTrdl)
+		if err != nil {
+			os.RemoveAll(filepath.Join(StorageDir, "self-update.delay"))
+		}
 		if done {
 			return err
 		}
@@ -158,6 +197,42 @@ type UseOptions struct {
 	AutoInstallTrdl         bool
 }
 
+func tryTrdlUse(group, channel string, shell string, options UseOptions) (bool, error) {
+	logPath := filepath.Join(os.Getenv("HOME"), ".multiwerf", "trdl", "log")
+	if err := os.MkdirAll(filepath.Dir(logPath), os.ModePerm); err != nil {
+		return false, fmt.Errorf("unable to create dir %s: %s", filepath.Dir(logPath), err)
+	}
+
+	logWriter, err := os.OpenFile(logPath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		return false, fmt.Errorf("unable to open file %q: %s", logPath, err)
+	}
+	defer logWriter.Close()
+
+	if !options.SkipSelfUpdate {
+		backgroundUpdateLogPath := filepath.Join(StorageDir, "multiwerf_use_background_update.log")
+
+		args := []string{"self-update", "--in-background", "--output-file", backgroundUpdateLogPath}
+
+		cmd := exec.Command(os.Args[0], args...)
+		if err := cmd.Start(); err != nil {
+			fmt.Fprintf(logWriter, "command '%s' start failed: %s\n", strings.Join(append(os.Args[:0], args...), " "), err)
+			return false, err
+		}
+
+		if err := cmd.Process.Release(); err != nil {
+			fmt.Fprintf(logWriter, "process release failed: %s\n", err)
+			return false, err
+		}
+	}
+
+	done, err := trdlexec.TryExecTrdl(trdlexec.NewTrdlWerfUseCommand(group, channel, os.Stdout, logWriter, options.AsFile), options.AutoInstallTrdl)
+	if err != nil {
+		fmt.Fprintf(logWriter, "try exec trdl failed: %s\n", err)
+	}
+	return done, err
+}
+
 // Use:
 // * prints a shell script or
 // * generates a shell script file and prints the path
@@ -166,24 +241,6 @@ type UseOptions struct {
 // * multiwerf update procedure that will be performed on background or foreground and
 // * werf alias that uses path to the actual werf binary
 func Use(group, channel string, shell string, options UseOptions) (err error) {
-	if options.TryTrdl {
-		logPath := filepath.Join(os.Getenv("HOME"), ".multiwerf", "trdl", "log")
-		if err := os.MkdirAll(filepath.Dir(logPath), os.ModePerm); err != nil {
-			return fmt.Errorf("unable to create dir %s: %s", filepath.Dir(logPath), err)
-		}
-
-		logWriter, err := os.OpenFile(logPath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-		if err != nil {
-			return fmt.Errorf("unable to open file %q: %s", logPath, err)
-		}
-		defer logWriter.Close()
-
-		done, err := trdlexec.TryExecTrdl(trdlexec.NewTrdlWerfUseCommand(group, channel, os.Stdout, logWriter, options.AsFile), options.AutoInstallTrdl)
-		if done {
-			return err
-		}
-	}
-
 	printer := output.NewSilentPrint()
 	if err := ValidateGroup(group, printer); err != nil {
 		return err
@@ -191,6 +248,16 @@ func Use(group, channel string, shell string, options UseOptions) (err error) {
 
 	if err := SetupStorageDir(printer); err != nil {
 		return err
+	}
+
+	if options.TryTrdl {
+		done, err := tryTrdlUse(group, channel, shell, options)
+		if err != nil {
+			os.RemoveAll(filepath.Join(StorageDir, "self-update.delay"))
+		}
+		if done {
+			return err
+		}
 	}
 
 	firstWerfPathLogPath := filepath.Join(StorageDir, "multiwerf_use_first_werf_path.log")
