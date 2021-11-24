@@ -43,7 +43,7 @@ var (
 	withGCDefault = "yes"
 	withGCHelp    = "Run GC before update."
 
-	tryTrdlDefault = "no"
+	tryTrdlDefault = "yes"
 	tryTrdlHelp    = "Try to use system trdl package manager instad of multiwerf. Multiwerf is DEPRECATED, more info about trdl: https://github.com/werf/trdl. To disable trdl set to 'no'."
 
 	autoInstallTrdlDefault = "on-self-update"
