@@ -2,6 +2,8 @@
 [![Test coverage](https://api.codeclimate.com/v1/badges/fab032c3d6836d768af4/test_coverage)](https://codeclimate.com/github/werf/multiwerf/test_coverage)
 [![Download from Github](https://img.shields.io/github/tag-date/werf/multiwerf.svg?logo=github&label=latest)](https://github.com/werf/multiwerf/releases/latest)
 
+# ⛔️ DEPRECATED! This project repo is no longer being maintained. Use the new update manager by following [the instructions on the werf site](https://werf.io/installation.html). 
+
 **multiwerf** is a self-updatable [werf](https://github.com/werf/werf) manager with the awareness of release channels, allowed stability levels. multiwerf follows werf [Backward Compatibility Promise](https://github.com/werf/werf#backward-compatibility-promise).
 
 General usage of multiwerf is managing werf binaries and providing the actual binary for `MAJOR.MINOR` version and `CHANNEL` in the shell session.
